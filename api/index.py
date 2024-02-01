@@ -7,13 +7,12 @@ app = Flask(__name__)
 def home():
     return render_template(
         'frame.html',
-        name='rock paper scissors',
-        frame_name='my flask frame',
+        title='rock paper scissors',
         frame_image='https://img.freepik.com/free-psd/isolated-golden-luxury-photo-frame_1409-3600.jpg',
         content='welcome to rock paper scissors!'
-    )
+    ), 200
 
 
 @app.route('/matchup')
 def about():
-    return 'matchup info'
+    return 'matchup info', 200
