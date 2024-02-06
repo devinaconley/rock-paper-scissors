@@ -7,10 +7,17 @@
     <meta property="fc:frame" content="vNext"/>
     <meta property="fc:frame:image" content="{{frame_image}}"/>
     <meta property="og:image" content="{{frame_image}}"/>
-    <meta property="fc:frame:button:1" content="Green"/>
-    <meta property="fc:frame:button:2" content="Purple"/>
-    <meta property="fc:frame:button:3" content="Red"/>
-    <meta property="fc:frame:button:4" content="Blue"/>
+    <meta property="fc:frame:button:1" content="{{button1}}"/>
+    {% if button2 is defined %}
+    <meta property="fc:frame:button:2" content="{{button2}}"/>
+    {% endif %}
+    {% if button3 is defined %}
+    <meta property="fc:frame:button:3" content="{{button3}}"/>
+    {% endif %}
+    {% if button4 is defined %}
+    <meta property="fc:frame:button:4" content="{{button4}}"/>
+    {% endif %}
+    <meta property="fc:frame:post_url" content="{{post_url}}"/>
 </head>
 <body>
 {{content}}
