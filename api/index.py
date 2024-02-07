@@ -2,11 +2,14 @@
 main entry point for rock paper scissors app
 """
 # lib
+import json
 from flask import Flask, render_template, url_for, request
 
 # src
 from .warpcast import get_user
+from .neynar import validate_message
 from .storage import get_supabase, get_current_tournament
+from .models import FrameMessage
 
 app = Flask(__name__)
 
@@ -26,17 +29,17 @@ def home():
     return render_template(
         'frame.html',
         title='rock paper scissors',
-        frame_image='https://img.freepik.com/free-psd/isolated-golden-luxury-photo-frame_1409-3600.jpg',
+        image='https://img.freepik.com/free-psd/isolated-golden-luxury-photo-frame_1409-3600.jpg',
         content='welcome to rock paper scissors!',
         post_url=url_for('match', _external=True),
         button1='Play'
     ), 200
 
 
-@app.route('/match', methods=['GET', 'POST'])
+@app.route('/match', methods=['POST'])
 def match():
     fid = 8268
-    total = 2 ** 16
+    total = 2 ** 19
     seed = None  # might actually be funnier to matchup ogs against newbies (i.e. rank by fid)
 
     # get current round
@@ -47,8 +50,24 @@ def match():
     # render current match status
     # show emoji buttons if they can play, else back
     # TODO
+    print(request.data)
 
-    user = get_user(fid)
+    msg = FrameMessage(**json.loads(request.data))
+    print(msg)
+
+    user = get_user(msg.untrustedData.fid)
     print(user)
 
-    return 'match info', 200
+    return render_template(
+        'frame.html',
+        title='match info',
+        image='https://img.freepik.com/free-psd/isolated-golden-luxury-photo-frame_1409-3600.jpg',
+        content='rock paper scissors current matchup',
+        post_url=url_for('match', _external=True),
+        button1='back',
+        button1_action='link',
+        button1_target=url_for('home', _external=True),
+        button2='U+2618',
+        button3='U+1F4C4',
+        button4='U+2702'
+    ), 200

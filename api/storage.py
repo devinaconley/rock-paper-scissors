@@ -13,7 +13,8 @@ from .models import Tournament
 
 
 def get_supabase() -> Client:
-    load_dotenv()
+    if os.getenv('VERCEL_ENV') is None:
+        load_dotenv()
     url = os.environ.get('SUPABASE_URL')
     key = os.environ.get('SUPABASE_KEY')
     supabase = create_client(url, key)
