@@ -2,9 +2,9 @@
 data models
 """
 
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -15,7 +15,7 @@ class Tournament(BaseModel):
     created: datetime
     start: datetime
     size: int
-    seed: int | None
+    seed: Optional[int] = None
 
 
 class Result(Enum):
@@ -36,7 +36,7 @@ class Match(BaseModel):
     slot: int
     user0: int
     user1: int
-    winner: int | None
+    winner: Optional[int] = None
     result: Result
 
 
@@ -102,7 +102,7 @@ class Interactor(BaseModel):
     fid: int
     username: str
     display_name: str
-    custody_address: str | None
+    custody_address: Optional[str] = None
     pfp_url: str
     profile: Profile
     follower_count: int

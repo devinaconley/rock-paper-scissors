@@ -8,7 +8,7 @@ import requests
 from .models import FrameMessage, ValidatedMessage
 
 
-def get_frame_action(msg: str) -> (bool, ValidatedMessage | None):
+def get_frame_action(msg: str) -> (bool, ValidatedMessage):
     key = os.getenv('NEYNAR_KEY')
     url = 'https://api.neynar.com/v2/farcaster/frame/validate'
     body = {

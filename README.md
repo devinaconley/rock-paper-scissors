@@ -7,7 +7,7 @@ the backend is written in flask and deployed on vercel, the frontend is rendered
 
 setup a conda (or other virtual) environment
 ```
-conda create -n rock-paper-scissors python=3.11
+conda create -n rock-paper-scissors python=3.9
 conda activate rock-paper-scissors
 pip install -r requirements
 ```
