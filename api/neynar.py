@@ -5,7 +5,7 @@ import os
 
 import requests
 
-from .models import FrameMessage, ValidatedMessage
+from .models import FrameMessage, ValidatedMessage, Interactor, Profile, Bio, Button, Input
 
 
 def get_frame_action(msg: str) -> (bool, ValidatedMessage):
@@ -45,6 +45,33 @@ def validate_message(msg: FrameMessage) -> (bool, ValidatedMessage):
 
 def validate_message_or_mock(msg: FrameMessage) -> (bool, ValidatedMessage):
     if os.getenv('VERCEL_ENV') is None:
-        return True, ValidatedMessage()  # TODO populate
+        # mock
+        return True, ValidatedMessage(
+            object='validated_frame_action',
+            interactor=Interactor(
+                object='user',
+                fid=msg.untrustedData.fid,
+                username='',
+                display_name='',
+                pfp_url='',
+                profile=Profile(
+                    bio=Bio(
+                        text=''
+                    )
+                ),
+                follower_count=0,
+                following_count=0,
+                verifications=['0x'],
+                active_status='',
+            ),
+            tapped_button=Button(
+                index=msg.untrustedData.buttonIndex
+            ),
+            input=Input(
+                text=msg.untrustedData.inputText or ''
+            ),
+            url=msg.untrustedData.url,
+            cast={}
+        )  # TODO populate
 
     return validate_message(msg)

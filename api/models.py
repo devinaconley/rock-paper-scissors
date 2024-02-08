@@ -69,6 +69,7 @@ class UntrustedData(BaseModel):
     timestamp: int
     network: int
     buttonIndex: int
+    inputText: Optional[str] = None
     castId: CastId
 
 
@@ -90,7 +91,7 @@ class Viewer(BaseModel):
 
 class Bio(BaseModel):
     text: str
-    mentioned_profiles: list[str]
+    mentioned_profiles: Optional[list[str]] = []
 
 
 class Profile(BaseModel):
@@ -109,13 +110,13 @@ class Interactor(BaseModel):
     following_count: int
     verifications: list[str]
     active_status: str
-    viewer_context: Viewer
+    viewer_context: Optional[Viewer] = None
 
 
 class Button(BaseModel):
-    title: str
+    title: Optional[str] = None
     index: int
-    action_type: str
+    action_type: Optional[str] = None
 
 
 class Input(BaseModel):
@@ -125,6 +126,16 @@ class Input(BaseModel):
 class ValidatedMessage(BaseModel):
     object: str
     interactor: Interactor
-    button: Button
+    tapped_button: Button
     input: Input
+    url: str
     cast: dict
+
+
+# ---- warpcast ----
+
+class User(BaseModel):
+    fid: int
+    username: str
+    displayName: str
+    # TODO ...
