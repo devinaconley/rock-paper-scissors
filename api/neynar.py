@@ -45,6 +45,6 @@ def validate_message(msg: FrameMessage) -> (bool, ValidatedMessage):
 
 def validate_message_or_mock(msg: FrameMessage) -> (bool, ValidatedMessage):
     if os.getenv('VERCEL_ENV') is None:
-        return True, ValidatedMessage()
+        return True, ValidatedMessage()  # TODO populate
 
     return validate_message(msg)
