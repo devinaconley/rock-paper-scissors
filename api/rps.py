@@ -1,6 +1,7 @@
 """
 game logic and state management on top of raw storage
 """
+import math
 
 from supabase import Client
 
@@ -13,29 +14,63 @@ ROUND_DURATION = 86400
 
 
 def current_round(start: int, current: int) -> int:
-    # TODO
-    return 0
+    # get next increment for actual tournament start time
+    days = math.ceil((start - ROUND_START) / ROUND_DURATION)
+    t0 = ROUND_DURATION * days + ROUND_START
+
+    if current < t0:
+        return -1  # not started
+
+    return (current - t0) // ROUND_DURATION  # first round = 0
 
 
 def round_size(total: int, round_: int) -> int:
-    # TODO
-    # note: return 0 if over
-    return 0
+    if total < 2:
+        raise ValueError('fewer than two people')
+    if round_ < 0:
+        raise ValueError(f'invalid round: {round_}')
+
+    # find next power of 2
+    total_rounds = math.ceil(math.log2(total))
+
+    # split for each round passed
+    sz = 2 ** (total_rounds - round_)
+
+    if sz < 1:
+        return 1  # tournament over
+    return int(sz)
 
 
-def remaining_users(tournament: int, total: int, round_: int, settled: int) -> int:
-    # TODO
-    return 0
+def remaining_users(total: int, round_: int, settled: int) -> int:
+    return round_size(total, round_) - settled
 
 
 def match_slot(total: int, round_: int, fid: int) -> int:
-    # TODO
-    return 0
+    # note: fid index starts at 1
+    # need to match 1 vs N, 2 vs N-1, etc...
+    if fid > total:
+        raise ValueError(f'user too high: {fid}, total: {total}')
+    if round_ < 0:
+        raise ValueError(f'invalid round: {round_}')
+
+    sz = round_size(total, 0)
+    slot = fid - 1
+    for i in range(round_ + 1):
+        slot = slot if slot < sz / 2 else sz - slot - 1
+        sz /= 2
+
+    return int(slot)
 
 
-def parent_slots(round_: int, slot: int) -> (int, int):
-    # TODO
-    return 0, 1
+def parent_slots(total: int, round_: int, slot: int) -> (int, int):
+    if round_ < 1:
+        raise ValueError(f'invalid round: {round_}')
+    sz = round_size(total, round_)
+    if slot >= sz / 2:
+        raise ValueError(f'slot too high: {slot}, round size: {sz}')
+
+    mirror = sz - slot - 1
+    return slot, mirror
 
 
 def get_round_settled(supabase: Client, tournament: int, round_: int) -> int:
