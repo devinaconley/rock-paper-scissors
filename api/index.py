@@ -9,7 +9,7 @@ from flask import Flask, render_template, url_for, request, redirect
 from .warpcast import get_user
 from .neynar import validate_message_or_mock
 from .storage import get_supabase, get_current_tournament
-from .models import FrameMessage
+from .models import FrameMessage, Gesture
 
 app = Flask(__name__)
 
@@ -39,10 +39,9 @@ def home():
 @app.route('/match', methods=['POST'])
 def match():
     # TODO
-    # get current round
-    # compute match slot and parent slots
-    # get users by previous match results (recurse and backfill as needed)
-    # winner: check for explicit result, then check for draw, then check for uncontested play, then prefer lower fid
+    # get current tournament/round
+    # get user match
+    # get match state
 
     # render current match status
     # show emoji buttons if they can play, else back
@@ -64,11 +63,9 @@ def match():
         image='https://img.freepik.com/premium-photo/versus-screen-fight-backgrounds-competition-3d-rendering_578102-1434.jpg',
         content='rock paper scissors current matchup',
         post_url=url_for('move', _external=True),
-        button1='back',
-        button1_target=url_for('home', _external=True),  # TODO go back (could just force to play if needed)
-        button2='\U0001faa8',  # rock
-        button3='\U0001f4c3',  # paper
-        button4='\U00002702\U0000fe0f',  # scissors
+        button1='\U0001faa8',  # rock
+        button2='\U0001f4c3',  # paper
+        button3='\U00002702\U0000fe0f',  # scissors
     ), 200
 
 
@@ -82,6 +79,8 @@ def move():
     val, action = validate_message_or_mock(msg)
     if val:
         print(f'played: {action.tapped_button.index}')
+        g = Gesture(action.tapped_button.index)
+        print(g)
 
     # TODO submit action, etc.
 

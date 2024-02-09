@@ -139,3 +139,23 @@ class User(BaseModel):
     username: str
     displayName: str
     # TODO ...
+
+
+# ---- internal ----
+class State(Enum):
+    NEW = 0
+    USER_PLAYED = 1
+    OPPONENT_PLAYED = 2
+    DRAW = 3
+    SETTLED = 4
+
+
+class MatchState(BaseModel):
+    match: str
+    turn: int
+    state: State
+
+
+class TournamentState(BaseModel):
+    tournament: int
+    # TODO ...
