@@ -3,13 +3,15 @@ main entry point for rock paper scissors app
 """
 # lib
 import json
+import time
 from flask import Flask, render_template, url_for, request, redirect
 
 # src
 from .warpcast import get_user
 from .neynar import validate_message_or_mock
 from .storage import get_supabase, get_current_tournament
-from .models import FrameMessage, Gesture
+from .models import FrameMessage, Gesture, MatchState, MatchStatus
+from .rps import get_round_settled, current_round, get_match_user, get_match_user_eliminated, get_match_state
 
 app = Flask(__name__)
 
@@ -21,10 +23,15 @@ def home():
     # get bounty
     # render image
     # TODO
+    now = time.time()
 
-    supabase = get_supabase()
-    curr = get_current_tournament(supabase)
-    print(curr)
+    s = get_supabase()
+    t = get_current_tournament(s)
+    print(t)
+    r = current_round(int(t.start.timestamp()), int(now))
+    print(f'round {r}')
+    elim = get_round_settled(s, t.id, r)
+    print(f'eliminated {elim}')
 
     return render_template(
         'frame.html',
@@ -38,6 +45,7 @@ def home():
 
 @app.route('/match', methods=['POST'])
 def match():
+    # note: consider this an unauthenticated endpoint
     # TODO
     # get current tournament/round
     # get user match
@@ -47,12 +55,36 @@ def match():
     # show emoji buttons if they can play, else back
     # note probably won't show what they played if waiting, would require auth
 
-    print(request.data)
-    print(request.headers)
-    print(request.method)
-
+    # parse action message
     msg = FrameMessage(**json.loads(request.data))
     print(msg)
+
+    # tournament state
+    now = time.time()
+    s = get_supabase()
+    t = get_current_tournament(s)
+    r = current_round(int(t.start.timestamp()), int(now))
+
+    if msg.untrustedData.fid > t.size:
+        print(f'fid {msg.untrustedData.fid} not competing')
+        return ''  # TODO not competing
+
+    m = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
+    print(m)
+    if m is None:
+        m = get_match_user_eliminated(s, t.id, msg.untrustedData.fid)
+        print(f'eliminated {m}')
+        return ''  # TODO eliminated
+
+    state = get_match_state(s, m.id)
+
+    if state.status == MatchStatus.USER_PLAYED:
+        return ''  # TODO waiting
+
+    elif state.status == MatchStatus.SETTLED:
+        return ''  # TODO results
+
+    # else user needs to play (NEW, OPPONENT_PLAYED, DRAW)
 
     user = get_user(msg.untrustedData.fid)
     print(user)
@@ -63,7 +95,7 @@ def match():
         image='https://img.freepik.com/premium-photo/versus-screen-fight-backgrounds-competition-3d-rendering_578102-1434.jpg',
         content='rock paper scissors current matchup',
         post_url=url_for('move', _external=True),
-        button1='\U0001faa8',  # rock
+        button1='\U0001F5FF',  # rock
         button2='\U0001f4c3',  # paper
         button3='\U00002702\U0000fe0f',  # scissors
     ), 200
@@ -76,11 +108,14 @@ def move():
 
     # TODO verify game state (turn unplayed)
 
+    # authenticate action here
     val, action = validate_message_or_mock(msg)
-    if val:
-        print(f'played: {action.tapped_button.index}')
-        g = Gesture(action.tapped_button.index)
-        print(g)
+    if not val:
+        raise ValueError(f'invalid message! {msg.model_dump_json()}')
+
+    print(f'played: {action.tapped_button.index}')
+    g = Gesture(action.tapped_button.index)
+    print(g)
 
     # TODO submit action, etc.
 

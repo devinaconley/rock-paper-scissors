@@ -20,7 +20,7 @@ class Tournament(BaseModel):
 
 class Result(Enum):
     PENDING = 0
-    PLAY = 1
+    PLAYED = 1
     DRAW = 2
     FORFEIT = 3
     PASS = 4
@@ -37,6 +37,7 @@ class Match(BaseModel):
     user0: int
     user1: int
     winner: Optional[int] = None
+    loser: Optional[int] = None
     result: Result
 
 
@@ -53,6 +54,7 @@ class Move(BaseModel):
     user: int
     turn: int
     move: Gesture
+    signature: str
 
 
 # ---- frame message ----
@@ -142,7 +144,7 @@ class User(BaseModel):
 
 
 # ---- internal ----
-class State(Enum):
+class MatchStatus(Enum):
     NEW = 0
     USER_PLAYED = 1
     OPPONENT_PLAYED = 2
@@ -153,7 +155,7 @@ class State(Enum):
 class MatchState(BaseModel):
     match: str
     turn: int
-    state: State
+    status: MatchStatus
 
 
 class TournamentState(BaseModel):

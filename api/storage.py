@@ -7,6 +7,7 @@ import os
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from postgrest.types import CountMethod
 
 # src
 from .models import Tournament, Match, Result, Move, Gesture
@@ -28,30 +29,42 @@ def get_current_tournament(supabase: Client) -> Tournament:
     return Tournament(**res.data[0])
 
 
+def get_matches_count(supabase: Client, tournament: int, round_: int, result: Result = None) -> int:
+    q = supabase.table('match').select(count=CountMethod.exact).eq('tournament', tournament).eq('round', round_)
+    if result is not None:
+        q = q.eq('result', result.value)
+    res = q.execute()
+    print(res)
+    return res.count
+
+
 def get_match(supabase: Client, tournament: int, round_: int, slot: int) -> Match:
-    # TODO
-    pass
+    match_id = f'{tournament}_{round_}_{slot}'
+    res = supabase.table('match').select('*').eq('id', match_id).execute()
+    print(f'get_match: {match_id}')
+    print(res)
+    if not res.data:
+        return None
+    return Match(**res.data[0])
 
 
-def set_match(
-        supabase: Client,
-        tournament: int,
-        round_: int,
-        slot: int,
-        user0: int,
-        user1: int,
-        winner: int = None,
-        result: Result = None
-):
-    # TODO
-    pass
+def set_match(supabase: Client, match: Match):
+    match_id = f'{match.tournament}_{match.round}_{match.slot}'
+    if match.id != match_id:
+        print(f'warning: match id was wrong {match.id} {match_id}, fixing...')
+        match.id = match_id
+    body = match.model_dump(mode='json', exclude_none=True)
+    print(body)
+    res = supabase.table('match').upsert(body).execute()
+    print(f'set match result {res}')
+    return res
 
 
 def get_moves(supabase: Client, match: str) -> list[Move]:
     # TODO
-    pass
+    return []
 
 
-def set_move(supabase: Client, match: str, fid: int, gesture: Gesture):
+def set_move(supabase: Client, match: str, fid: int, turn: int, gesture: Gesture):
     # TODO
     pass
