@@ -36,10 +36,21 @@ def get_frame_action(msg: str) -> (bool, ValidatedMessage):
 
 def validate_message(msg: FrameMessage) -> (bool, ValidatedMessage):
     valid, action = get_frame_action(msg.trustedData.messageBytes)
-    print(valid)
-    print(msg)
-    print(action)
-    # TODO compare
+    if not valid:
+        return valid, action
+
+    if msg.untrustedData.fid != action.interactor.fid:
+        print(f'fid does not match: {msg.untrustedData.fid} {action.interactor.fid}')
+        return False, action
+
+    if msg.untrustedData.buttonIndex != action.tapped_button.index:
+        print(f'button index does not match: {msg.untrustedData.buttonIndex} {action.tapped_button.index}')
+        return False, action
+
+    if msg.untrustedData.inputText is not None and msg.untrustedData.inputText != action.input.text:
+        print(f'text input does not match: {msg.untrustedData.inputText} {action.input.text}')
+        return False, action
+
     return valid, action
 
 

@@ -146,8 +146,8 @@ class User(BaseModel):
 # ---- internal ----
 class MatchStatus(Enum):
     NEW = 0
-    USER_PLAYED = 1
-    OPPONENT_PLAYED = 2
+    USER_0_PLAYED = 1
+    USER_1_PLAYED = 2
     DRAW = 3
     SETTLED = 4
 
@@ -156,6 +156,10 @@ class MatchState(BaseModel):
     match: str
     turn: int
     status: MatchStatus
+    winner: Optional[int] = None
+    loser: Optional[int] = None
+    history0: list[int] = []
+    history1: list[int] = []
 
 
 class TournamentState(BaseModel):

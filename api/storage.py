@@ -30,6 +30,7 @@ def get_current_tournament(supabase: Client) -> Tournament:
 
 
 def get_matches_count(supabase: Client, tournament: int, round_: int, result: Result = None) -> int:
+    # TODO debug
     q = supabase.table('match').select(count=CountMethod.exact).eq('tournament', tournament).eq('round', round_)
     if result is not None:
         q = q.eq('result', result.value)
@@ -60,11 +61,24 @@ def set_match(supabase: Client, match: Match):
     return res
 
 
-def get_moves(supabase: Client, match: str) -> list[Move]:
+def get_moves(supabase: Client, match_id: str) -> list[Move]:
     # TODO
-    return []
+    res = supabase.table('move').select('*').eq('match', match_id).execute()
+    print(f'get_moves: {match_id}')
+    print(res)
+    if not res.data:
+        return []
+    return [Move(**d) for d in res.data]
 
 
-def set_move(supabase: Client, match: str, fid: int, turn: int, gesture: Gesture):
-    # TODO
-    pass
+def set_move(supabase: Client, move: Move):
+    move_id = f'{move.match}_{move.user}_{move.turn}'
+    if move.id != move_id:
+        print(f'warning: move id was wrong {move.id} {move_id}, fixing...')
+        move.id = move_id
+
+    body = move.model_dump(mode='json')
+    print(body)
+    res = supabase.table('move').insert(body).execute()
+    print(f'set move result {res}')
+    return res
