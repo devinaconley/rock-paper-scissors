@@ -53,8 +53,6 @@ def get_match(supabase: Client, tournament: int, round_: int, slot: int) -> Matc
     return Match(**res.data[0])
 
 
-# TODO get_matches ?
-
 def get_match_loser(supabase: Client, tournament: int, loser: int) -> Match:
     res = supabase.table('match').select('*').eq('tournament', tournament).eq('loser', loser).execute()
     if not res.data:

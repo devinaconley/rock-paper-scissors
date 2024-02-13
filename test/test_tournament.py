@@ -1,5 +1,5 @@
 """
-test cases for game logic utilities
+test cases for tournament logic utilities
 """
 
 # lib

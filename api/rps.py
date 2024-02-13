@@ -112,13 +112,16 @@ def get_match_slot(
         total: int,
         curr_round: int,
         round_: int,
-        slot: int
+        slot: int,
+        create_if_none: bool = True
 ) -> (Match, MatchState):
-    # TODO speed up
     # get match if exists
-    print(f'get match slot {round_} {slot}')
     m = get_match(supabase, tournament, round_, slot)
-    if m is None:
+    if m is not None:
+        print(f'got match {tournament} {round_} {slot}')
+        return update_match_result(supabase, now, curr_round, m)
+    else:
+        print(f'lazy init match {tournament} {round_} {slot}')
         # lazy init
         if round_ == 0:
             # at beginning
@@ -132,9 +135,9 @@ def get_match_slot(
             # get users by previous match results
             a, b = parent_slots(total, round_, slot)
 
-            # recurse and backfill as needed
-            ma, _ = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, a)
-            mb, _ = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, b)
+            # recurse and (optional) backfill as needed
+            ma, _ = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, a, create_if_none=True)
+            mb, _ = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, b, create_if_none=True)
             if ma.winner is None:
                 raise Exception(f'winner missing for match {ma.id}')  # sanity
             if mb.winner is None:
@@ -155,15 +158,16 @@ def get_match_slot(
             result=Result.PENDING
         )
 
-        if fid1 == 0:
-            # settle bye
-            m.winner = fid0
-            m.loser = fid1
-            m.result = Result.BYE
+        # if match did not already exist, no moves could have been played
+        state = MatchState(match=m.id, turn=0, status=MatchStatus.NEW)
+        m = resolve_match(curr_round, m, state)
 
-        set_match(supabase, m)
+        # note: would prefer not to recursively create old matches
+        # but currently doing backfill to incrementally handle timeout + set elimination match
+        if create_if_none:
+            set_match(supabase, m)
 
-    return update_match_result(supabase, now, curr_round, m)
+        return m, state
 
 
 def update_match_result(supabase: Client, now: int, round_: int, match: Match) -> (Match, MatchState):
@@ -173,19 +177,40 @@ def update_match_result(supabase: Client, now: int, round_: int, match: Match) -
 
     # winner: check for explicit result, then check for draw, then check for uncontested play, then prefer lower fid
     state = get_match_state(supabase, match)
+    match = resolve_match(round_, match, state)
 
-    if state.status in {MatchStatus.NEW, MatchStatus.DRAW}:
+    # assume any Match object passed in has at least been initialized to a PENDING state
+    if match.result == Result.PENDING:
+        return match, state  # nothing to update
+
+    # update
+    match.updated = datetime.datetime.utcfromtimestamp(now)
+    set_match(supabase, match)
+
+    return match, state
+
+
+def resolve_match(round_: int, match: Match, state: MatchState) -> Match:
+    if match.user1 == 0:
+        # settle bye
+        match.winner = match.user0
+        match.loser = 0
+        match.result = Result.BYE
+
+    elif state.status in {MatchStatus.NEW, MatchStatus.DRAW}:
         if round_ == match.round:
             match.result = Result.PENDING
         else:
             # draw goes to farcaster seniority (lower fid)
             match.winner = min(match.user0, match.user1)
             match.loser = max(match.user0, match.user1)
-            match.result = Result.PASS
+            match.result = Result.PASS if state.status == MatchStatus.NEW else Result.DRAW
+
     elif state.status == MatchStatus.USER_0_PLAYED:
         if round_ == match.round:
             match.result = Result.PENDING
         else:
+            # forfeit goes to whoever played last move
             match.winner = match.user0
             match.loser = match.user1
             match.result = Result.FORFEIT
@@ -203,19 +228,18 @@ def update_match_result(supabase: Client, now: int, round_: int, match: Match) -
         match.loser = state.loser
         match.result = Result.PLAYED
 
-    if match.result == Result.PENDING:
-        return match, state  # nothing to update
-
-    # update
-    match.updated = datetime.datetime.utcfromtimestamp(now)
-    set_match(supabase, match)
-
-    return match, state
+    return match
 
 
 def get_match_state(supabase: Client, match: Match) -> MatchState:
-    state = MatchState(match=match.id, turn=0, status=MatchStatus.NEW)
     moves = get_moves(supabase, match.id)
+    state = resolve_match_state(match, moves)
+    return state
+
+
+def resolve_match_state(match: Match, moves: list[Move]) -> MatchState:
+    state = MatchState(match=match.id, turn=0, status=MatchStatus.NEW)
+
     if len(moves) == 0:
         return state
 
