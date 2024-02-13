@@ -27,8 +27,19 @@ def render_home(tournament: int, total: int, round_: int, prize, remaining: int)
     im = cv2.putText(im, f'{remaining} competitors remain', (x, 190), FONT, 0.7, (0, 0, 0), 1)
 
     # message
-    im = cv2.putText(im, 'Welcome! Proceed below to play.', (22, 250), FONT, 0.5, (255, 255, 255))
-    im = cv2.putText(im, 'Good luck!', (22, 270), FONT, 0.5, (255, 255, 255))
+    im = write_message(im, line0='Welcome to Farcaster rock paper scissors. Proceed below to play.', line1='Good luck!')
+
+    # encode
+    _, b = cv2.imencode('.png', im)
+    return b.tobytes()
+
+
+def render_message(line0: str = None, line1: str = None) -> bytes:
+    # setup background
+    im = cv2.imread('api/static/tournament.png')
+
+    # message
+    im = write_message(im, line0=line0, line1=line1)
 
     # encode
     _, b = cv2.imencode('.png', im)
@@ -63,11 +74,9 @@ def render_match(
     im[y:y + PFP_SZ, x:x + PFP_SZ] = pfp_opp
 
     # message
-    im = cv2.putText(
-        im,
-        f'Round {round_} matchup, {user.displayName:.16s} vs. {opponent.displayName:.16s}. Turn {turn}.',
-        (22, 250), FONT, 0.5, (255, 255, 255)
-    )
+    im = write_message(
+        im, line0=f'Round {round_} matchup, {user.displayName:.16s} vs. {opponent.displayName:.16s}. Turn {turn}.')
+
     # TODO more message details (gestures, result, etc.)
     if match.winner is not None:
         if match.winner == user.fid:
@@ -80,12 +89,12 @@ def render_match(
             user.fid == match.user1 and status == MatchStatus.USER_1_PLAYED):
         msg = 'Waiting on your opponent.'
     elif (user.fid == match.user0 and status == MatchStatus.USER_1_PLAYED) or (
-                user.fid == match.user1 and status == MatchStatus.USER_0_PLAYED):
+            user.fid == match.user1 and status == MatchStatus.USER_0_PLAYED):
         msg = 'Your opponent has played. Make a move!'
     else:
         # NEW
         msg = 'Play your move!'
-    im = cv2.putText(im, f'{msg}', (22, 270), FONT, 0.5, (255, 255, 255))
+    im = write_message(im, line1=msg)
 
     # cv2.imshow('debug', im)
     # cv2.waitKey(0)
@@ -105,4 +114,12 @@ def get_pfp(url: str) -> np.ndarray:
     im = np.asarray(bytearray(res.read()), dtype='uint8')
     im = cv2.imdecode(im, cv2.IMREAD_COLOR)
     im = cv2.resize(im, (PFP_SZ, PFP_SZ))
+    return im
+
+
+def write_message(im: np.ndarray, line0: str = None, line1: str = None) -> np.ndarray:
+    if line0 is not None:
+        im = cv2.putText(im, line0, (22, 250), FONT, 0.5, (255, 255, 255))
+    if line1 is not None:
+        im = cv2.putText(im, line1, (22, 270), FONT, 0.5, (255, 255, 255))
     return im

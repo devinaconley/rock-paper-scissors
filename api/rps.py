@@ -78,19 +78,30 @@ def get_round_settled(supabase: Client, tournament: int, round_: int) -> int:
     return get_matches_count(supabase, tournament, round_, result=Result.PLAYED)
 
 
-def get_match_user(supabase: Client, now: int, tournament: int, total: int, round_: int, fid: int) -> Match:
+def get_match_user(
+        supabase: Client,
+        now: int,
+        tournament: int,
+        total: int,
+        round_: int,
+        fid: int
+) -> (Match, MatchState):
     # compute match slot and parent slots
     slot = match_slot(total, round_, fid)
 
     # get or lazily create match
-    m = get_match_slot(supabase, now, tournament, total, round_, round_, slot)
-    print(m)
+    m, s = get_match_slot(supabase, now, tournament, total, round_, round_, slot)
+    print(m, s)
 
     # verify that user made it to match
     if fid != m.user0 and fid != m.user1:
-        return None  # eliminated
+        return None, None  # eliminated
 
-    return m
+    # get state if not already returned
+    if s is None:
+        s = get_match_state(supabase, m)
+
+    return m, s
 
 
 def get_match_slot(
@@ -101,7 +112,7 @@ def get_match_slot(
         curr_round: int,
         round_: int,
         slot: int
-) -> Match:
+) -> (Match, MatchState):
     # TODO speed up
     # get match if exists
     print(f'get match slot {round_} {slot}')
@@ -121,8 +132,8 @@ def get_match_slot(
             a, b = parent_slots(total, round_, slot)
 
             # recurse and backfill as needed
-            ma = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, a)
-            mb = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, b)
+            ma, _ = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, a)
+            mb, _ = get_match_slot(supabase, now, tournament, total, curr_round, round_ - 1, b)
             if ma.winner is None:
                 raise Exception(f'winner missing for match {ma.id}')  # sanity
             if mb.winner is None:
@@ -154,10 +165,10 @@ def get_match_slot(
     return update_match_result(supabase, now, curr_round, m)
 
 
-def update_match_result(supabase: Client, now: int, round_: int, match: Match) -> Match:
+def update_match_result(supabase: Client, now: int, round_: int, match: Match) -> (Match, MatchState):
     if match.winner is not None:
         # already scored
-        return match
+        return match, None
 
     # winner: check for explicit result, then check for draw, then check for uncontested play, then prefer lower fid
     state = get_match_state(supabase, match)
@@ -192,13 +203,13 @@ def update_match_result(supabase: Client, now: int, round_: int, match: Match) -
         match.result = Result.PLAYED
 
     if match.result == Result.PENDING:
-        return match  # nothing to update
+        return match, state  # nothing to update
 
     # update
     match.updated = datetime.datetime.utcfromtimestamp(now)
     set_match(supabase, match)
 
-    return match
+    return match, state
 
 
 def get_match_state(supabase: Client, match: Match) -> MatchState:

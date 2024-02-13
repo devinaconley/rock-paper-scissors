@@ -10,7 +10,7 @@ from flask import Flask, render_template, url_for, request, make_response, jsoni
 from .warpcast import get_user
 from .neynar import validate_message_or_mock
 from .storage import get_supabase, get_current_tournament, get_tournament, get_match
-from .models import FrameMessage, Gesture, MatchState, MatchStatus
+from .models import FrameMessage, Gesture, MatchState, MatchStatus, MessageCode
 from .rps import (
     get_round_settled,
     current_round,
@@ -18,9 +18,10 @@ from .rps import (
     get_match_user_eliminated,
     get_match_state,
     submit_move,
-    remaining_users
+    remaining_users,
+    update_match_result
 )
-from .render import render_home, render_match
+from .render import render_home, render_match, render_message
 
 app = Flask(__name__)
 
@@ -38,17 +39,20 @@ def handle_invalid_usage(e):
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    # static home page
+    # tournament status home page
     s = get_supabase()
     t = get_current_tournament(s)
 
-    now = time.time()
-    hour = now - now % 3600
+    # include hour in path to skip cached image and serve fresh
+    hour = None
+    if request.method == 'POST':
+        now = time.time()
+        hour = now - now % 3600
 
     return render_template(
         'frame.html',
         title='farcaster rock paper scissors',
-        image=url_for('home_image', _external=True, tournament=t.id),
+        image=url_for('home_image', _external=True, tournament=t.id, timestamp=hour),
         content='welcome to rock paper scissors!',
         post_url=url_for('match', _external=True),
         button1='play \U00002694\U0000fe0f'
@@ -75,11 +79,19 @@ def match():
     t = get_current_tournament(s)
     r = current_round(int(t.start.timestamp()), int(now))
 
+    # TODO not started
+
     if msg.untrustedData.fid > t.size:
         print(f'fid {msg.untrustedData.fid} not competing')
-        return ''  # TODO not competing
+        return render_template(
+            'frame.html',
+            title='not entered',
+            image=url_for('message_image', _external=True, code=MessageCode.NOT_ENTERED.value),
+            post_url=url_for('home', _external=True),
+            button1='\U0001F519'  # back
+        ), 200
 
-    m = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
+    m, state = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
     print(m)
     if m is None:
         m = get_match_user_eliminated(s, t.id, msg.untrustedData.fid)
@@ -92,9 +104,6 @@ def match():
             post_url=url_for('home', _external=True),
             button1='\U0001F519'  # back
         ), 200
-
-    state = get_match_state(s, m)
-    print(state)
 
     if ((state.status == MatchStatus.USER_0_PLAYED and msg.untrustedData.fid == m.user0)
             or (state.status == MatchStatus.USER_1_PLAYED and msg.untrustedData.fid == m.user1)):
@@ -147,12 +156,11 @@ def move():
     if msg.untrustedData.fid > t.size:
         raise BadRequest(f'fid {msg.untrustedData.fid} not competing')
 
-    m = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
+    m, state = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
     if m is None:
         raise BadRequest(f'fid {msg.untrustedData.fid} has been eliminated')
-
-    state = get_match_state(s, m)
     print(state)
+
     if state.status == MatchStatus.SETTLED:
         raise BadRequest(f'match {m.id} already settled, winner {m.winner}')
 
@@ -210,10 +218,10 @@ def home_image(tournament: int, timestamp: int = None):
 
 @app.route('/render/match/<int:tournament>/<int:round_>/<int:slot>/<int:turn>/<int:user>/<int:status>/im.png')
 def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, status: int):
-    # get match state
-    status = MatchStatus(status)
+    # get match
+    now = time.time()
     s = get_supabase()
-    m = get_match(s, tournament, round_, slot)  # TODO also get state from db
+    m = get_match(s, tournament, round_, slot)
     if m is None:
         raise BadRequest(f'invalid match {tournament} {round_} {slot}')
     if user == m.user0:
@@ -223,11 +231,35 @@ def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, s
     else:
         raise BadRequest(f'invalid user {m.id} {user}')
 
+    # get match state (with lazy scoring)
+    status = MatchStatus(status)
+    m, state = update_match_result(s, int(now), round_, m)
+    if state is None:
+        state = get_match_state(s, m)
+    # TODO need any param validation here?
+
     # get user info
     u0 = get_user(m.user0)
     u1 = get_user(m.user1)
 
     # render image
-    res = make_response(render_match(m, u0 if u else u1, u1 if u else u0, round_, turn, status))
+    res = make_response(render_match(m, u0 if u else u1, u1 if u else u0, round_, state.turn, state.status))
+    res.headers.set('Content-Type', 'image/png')
+    return res
+
+
+@app.route('/render/message/<int:code>/im.png')
+def message_image(code: int):
+    # render image
+    msg = MessageCode(code)
+    if msg == MessageCode.NOT_STARTED:
+        b = render_message(line0='The tournament has not started yet.', line1='Check back soon!')
+    elif msg == MessageCode.NOT_ENTERED:
+        b = render_message(line0='You were not entered in this tournament.', line1='Check back soon!')
+    else:
+        raise BadRequest(f'invalid msg {msg}')
+
+    # response
+    res = make_response(b)
     res.headers.set('Content-Type', 'image/png')
     return res

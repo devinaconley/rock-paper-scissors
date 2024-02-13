@@ -190,3 +190,9 @@ class MatchState(BaseModel):
 class TournamentState(BaseModel):
     tournament: int
     # TODO ...
+
+
+class MessageCode(Enum):
+    OK = 0
+    NOT_STARTED = 1
+    NOT_ENTERED = 2
