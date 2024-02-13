@@ -4,7 +4,7 @@ main entry point for rock paper scissors app
 # lib
 import json
 import time
-from flask import Flask, render_template, url_for, request, redirect, send_file, make_response
+from flask import Flask, render_template, url_for, request, make_response, jsonify
 
 # src
 from .warpcast import get_user
@@ -24,7 +24,17 @@ from .render import render_home, render_match
 
 app = Flask(__name__)
 
-# TODO error handling
+
+class BadRequest(Exception):
+    pass
+
+
+@app.errorhandler(BadRequest)
+def handle_invalid_usage(e):
+    response = jsonify({'status_code': 403, 'message': str(e)})
+    response.status_code = 403
+    return response
+
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
@@ -48,14 +58,12 @@ def home():
 @app.route('/match', methods=['POST'])
 def match():
     # note: consider this an unauthenticated endpoint
-    # TODO
+
     # get current tournament/round
     # get user match
     # get match state
-
     # render current match status
     # show emoji buttons if they can play, else back
-    # note probably won't show what they played if waiting, would require auth
 
     # parse action message
     msg = FrameMessage(**json.loads(request.data))
@@ -96,7 +104,6 @@ def match():
             title='waiting on opponent',
             image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=m.slot, turn=state.turn,
                           user=msg.untrustedData.fid, status=state.status.value),
-
             post_url=url_for('home', _external=True),
             button1='\U0001F519'  # back
         ), 200
@@ -138,25 +145,25 @@ def move():
     r = current_round(int(t.start.timestamp()), int(now))
 
     if msg.untrustedData.fid > t.size:
-        raise ValueError(f'fid {msg.untrustedData.fid} not competing')
+        raise BadRequest(f'fid {msg.untrustedData.fid} not competing')
 
     m = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
     if m is None:
-        raise ValueError(f'fid {msg.untrustedData.fid} has been eliminated')
+        raise BadRequest(f'fid {msg.untrustedData.fid} has been eliminated')
 
     state = get_match_state(s, m)
     print(state)
     if state.status == MatchStatus.SETTLED:
-        raise ValueError(f'match {m.id} already settled, winner {m.winner}')
+        raise BadRequest(f'match {m.id} already settled, winner {m.winner}')
 
     if ((state.status == MatchStatus.USER_0_PLAYED and msg.untrustedData.fid == m.user0)
             or (state.status == MatchStatus.USER_1_PLAYED and msg.untrustedData.fid == m.user1)):
-        raise ValueError(f'{msg.untrustedData.fid} already played a move for match {m.id} turn {state.turn}')
+        raise BadRequest(f'{msg.untrustedData.fid} already played a move for match {m.id} turn {state.turn}')
 
     # authenticate action here
     val, action = validate_message_or_mock(msg)
     if not val:
-        raise ValueError(f'invalid message! {msg.model_dump_json()}')
+        raise BadRequest(f'invalid message! {msg.model_dump_json()}')
 
     print(f'played: {action.tapped_button.index}')
     g = Gesture(action.tapped_button.index)
@@ -183,7 +190,7 @@ def home_image(tournament: int, timestamp: int = None):
     s = get_supabase()
     t = get_tournament(s, tournament)
     if t is None:
-        raise ValueError(f'invalid tournament {tournament}')
+        raise BadRequest(f'invalid tournament {tournament}')
 
     # get tournament state
     now = time.time()
@@ -208,13 +215,13 @@ def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, s
     s = get_supabase()
     m = get_match(s, tournament, round_, slot)  # TODO also get state from db
     if m is None:
-        raise ValueError(f'invalid match {tournament} {round_} {slot}')
+        raise BadRequest(f'invalid match {tournament} {round_} {slot}')
     if user == m.user0:
         u = True
     elif user == m.user1:
         u = False
     else:
-        raise ValueError(f'invalid user {m.id} {user}')
+        raise BadRequest(f'invalid user {m.id} {user}')
 
     # get user info
     u0 = get_user(m.user0)
