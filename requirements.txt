@@ -1,6 +1,6 @@
 # requirements.txt
 Flask~=3.0.1
-opencv-python~=4.9.0.80
+opencv-python-headless~=4.9.0.80
 pydantic
 python-dotenv~=1.0.1
 requests~=2.31.0
