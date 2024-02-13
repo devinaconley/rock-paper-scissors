@@ -28,6 +28,13 @@ def get_current_tournament(supabase: Client) -> Tournament:
         raise Exception('could not get current tournament')
     return Tournament(**res.data[0])
 
+def get_tournament(supabase: Client, tournament: int) -> Tournament:
+    res = supabase.table('tournament').select('*').eq('id', tournament).execute()
+    print(res)
+    if res.count == 0:
+        raise Exception('could not get current tournament')
+    return Tournament(**res.data[0])
+
 
 def get_matches_count(supabase: Client, tournament: int, round_: int, result: Result = None) -> int:
     # TODO debug
@@ -62,7 +69,6 @@ def set_match(supabase: Client, match: Match):
 
 
 def get_moves(supabase: Client, match_id: str) -> list[Move]:
-    # TODO
     res = supabase.table('move').select('*').eq('match', match_id).execute()
     print(f'get_moves: {match_id}')
     print(res)

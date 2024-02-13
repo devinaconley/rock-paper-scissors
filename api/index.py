@@ -4,12 +4,12 @@ main entry point for rock paper scissors app
 # lib
 import json
 import time
-from flask import Flask, render_template, url_for, request, redirect
+from flask import Flask, render_template, url_for, request, redirect, send_file, make_response
 
 # src
 from .warpcast import get_user
 from .neynar import validate_message_or_mock
-from .storage import get_supabase, get_current_tournament
+from .storage import get_supabase, get_current_tournament, get_tournament, get_match
 from .models import FrameMessage, Gesture, MatchState, MatchStatus
 from .rps import (
     get_round_settled,
@@ -17,33 +17,24 @@ from .rps import (
     get_match_user,
     get_match_user_eliminated,
     get_match_state,
-    submit_move
+    submit_move,
+    remaining_users
 )
+from .render import render_home, render_match
 
 app = Flask(__name__)
 
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    # get current tournament round
-    # get remaining players
-    # get bounty
-    # render image
-    # TODO
-    now = time.time()
-
+    # static home page
     s = get_supabase()
     t = get_current_tournament(s)
-    print(t)
-    r = current_round(int(t.start.timestamp()), int(now))
-    print(f'round {r}')
-    elim = get_round_settled(s, t.id, r)
-    print(f'eliminated {elim}')
 
     return render_template(
         'frame.html',
-        title='rock paper scissors',
-        image='https://img.freepik.com/free-psd/isolated-golden-luxury-photo-frame_1409-3600.jpg',
+        title='farcaster rock paper scissors',
+        image=url_for('home_image', _external=True, tournament=t.id),
         content='welcome to rock paper scissors!',
         post_url=url_for('match', _external=True),
         button1='play \U00002694\U0000fe0f'
@@ -174,9 +165,50 @@ def move():
 
     return render_template(
         'frame.html',
-        title='you played a move! waiting on opponent...',
-        image='https://img.freepik.com/free-photo/hourglass-with-sand-middle-word-sand-it_123827-23414.jpg',
-        content='you played a move! waiting on opponent',
+        title='you played a move!',
+        image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=0, turn=0, user=0, status=0),
+        content='you played a move!',
         post_url=url_for('home', _external=True),
         button1='back'
     ), 200
+
+
+@app.route('/render/tournament/<int:tournament>/im.png')
+@app.route('/render/tournament/<int:tournament>/<int:timestamp>/im.png')
+def home_image(tournament: int, timestamp: int = None):
+    print(f'requesting image render for tournament {tournament} {timestamp}')
+    s = get_supabase()
+    t = get_tournament(s, tournament)
+    if t is None:
+        raise ValueError(f'invalid tournament {tournament}')
+
+    # get tournament state
+    now = time.time()
+    r = current_round(int(t.start.timestamp()), int(now))
+    print(f'round {r}')
+    r_settled = get_round_settled(s, t.id, r)
+    remaining = remaining_users(t.size, r, r_settled)
+    print(f'settled {r_settled}')
+    print(f'remaining {remaining}')
+    # TODO get bounty?
+
+    # render image
+    res = make_response(render_home(t.id, t.size, r, 'TBD', remaining))
+    res.headers.set('Content-Type', 'image/png')
+    return res
+
+
+@app.route('/render/match/<int:tournament>/<int:round_>}/<int:slot>/<int:turn>/<int:user>/<int:status>/im.png')
+def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, status: int):
+    # get match state
+    status = MatchStatus(status)
+    u = bool(user)
+    s = get_supabase()
+    m = get_match(s, tournament, round_, slot)
+    if m is None:
+        raise ValueError(f'invalid match {tournament} {round_} {slot}')
+
+    # render image
+    res = make_response(render_match(m, round_, turn, u, status))
+    res.headers.set('Content-Type', 'image/png')
+    return res
