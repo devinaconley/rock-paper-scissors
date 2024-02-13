@@ -19,7 +19,7 @@ def render_home(tournament: int, total: int, round_: int, prize, remaining: int)
 
     # stats
     x = 12
-    im = cv2.putText(im, 'Farcaster rock paper scissors', (x, 30), FONT, 0.8, (0, 0, 0), 2)
+    im = cv2.putText(im, 'Farcaster rock paper scissors', (x, 30), FONT, 0.7, (0, 0, 0), 2)
     im = cv2.putText(im, f'tournament {tournament}', (x, 70), FONT, 0.7, (0, 0, 0), 1)
     im = cv2.putText(im, f'prize {prize}', (x, 100), FONT, 0.7, (0, 0, 0), 1)
     im = cv2.putText(im, f'round {round_}', (x, 130), FONT, 0.7, (0, 0, 0), 1)
@@ -27,7 +27,7 @@ def render_home(tournament: int, total: int, round_: int, prize, remaining: int)
     im = cv2.putText(im, f'{remaining} competitors remain', (x, 190), FONT, 0.7, (0, 0, 0), 1)
 
     # message
-    im = write_message(im, line0='Welcome to Farcaster rock paper scissors. Proceed below to play.', line1='Good luck!')
+    im = write_message(im, line0='Welcome to Farcaster rock paper scissors. Click below to play.', line1='Good luck!')
 
     # encode
     _, b = cv2.imencode('.png', im)
@@ -66,7 +66,7 @@ def render_match(
     im[y:y + PFP_SZ, x:x + PFP_SZ] = pfp_user
 
     # opponent data
-    im = cv2.putText(im, f'{opponent.displayName:.16s}', (46, 25), FONT, 0.4, (0, 0, 0))
+    im = cv2.putText(im, f'{opponent.displayName:.16s}', (45, 25), FONT, 0.4, (0, 0, 0))
     im = cv2.putText(im, f'Fid.{opponent.fid}', (175, 25), FONT, 0.3, (0, 0, 0))
     pfp_opp = get_pfp(opponent.pfp.url)
     x = 360

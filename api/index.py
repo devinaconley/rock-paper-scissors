@@ -44,6 +44,7 @@ def home():
     t = get_current_tournament(s)
 
     # include hour in path to skip cached image and serve fresh
+    # TODO: remove this concept once we get official first page cache expiry
     hour = None
     if request.method == 'POST':
         now = time.time()
@@ -79,7 +80,14 @@ def match():
     t = get_current_tournament(s)
     r = current_round(int(t.start.timestamp()), int(now))
 
-    # TODO not started
+    if r < 0:
+        return render_template(
+            'frame.html',
+            title='tournament not started',
+            image=url_for('message_image', _external=True, code=MessageCode.NOT_STARTED.value),
+            post_url=url_for('home', _external=True),
+            button1='\U0001F519'  # back
+        ), 200
 
     if msg.untrustedData.fid > t.size:
         print(f'fid {msg.untrustedData.fid} not competing')
@@ -96,11 +104,11 @@ def match():
     if m is None:
         m = get_match_user_eliminated(s, t.id, msg.untrustedData.fid)
         print(f'eliminated {m}')
-        # TODO eliminated
         return render_template(
             'frame.html',
             title='you were eliminated',
-            image='https://img.freepik.com/free-photo/hourglass-with-sand-middle-word-sand-it_123827-23414.jpg',
+            image=url_for('match_image', _external=True, tournament=t.id, round_=m.round, slot=m.slot, turn=0,
+                          user=msg.untrustedData.fid, status=MatchStatus.SETTLED.value),
             post_url=url_for('home', _external=True),
             button1='\U0001F519'  # back
         ), 200

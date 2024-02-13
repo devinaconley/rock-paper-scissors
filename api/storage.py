@@ -28,35 +28,40 @@ def get_current_tournament(supabase: Client) -> Tournament:
         raise Exception('could not get current tournament')
     return Tournament(**res.data[0])
 
+
 def get_tournament(supabase: Client, tournament: int) -> Tournament:
     res = supabase.table('tournament').select('*').eq('id', tournament).execute()
-    print(res)
     if res.count == 0:
         raise Exception('could not get current tournament')
     return Tournament(**res.data[0])
 
 
 def get_matches_count(supabase: Client, tournament: int, round_: int, result: Result = None) -> int:
-    # TODO debug
-    q = supabase.table('match').select(count=CountMethod.exact).eq('tournament', tournament).eq('round', round_)
+    # TODO ideally would not return any data
+    q = supabase.table('match').select('id', count=CountMethod.exact).eq('tournament', tournament).eq('round', round_)
     if result is not None:
         q = q.eq('result', result.value)
     res = q.execute()
-    print(res)
     return res.count
 
 
 def get_match(supabase: Client, tournament: int, round_: int, slot: int) -> Match:
     match_id = f'{tournament}_{round_}_{slot}'
     res = supabase.table('match').select('*').eq('id', match_id).execute()
-    print(f'get_match: {match_id}')
-    print(res)
     if not res.data:
         return None
     return Match(**res.data[0])
 
 
 # TODO get_matches ?
+
+def get_match_loser(supabase: Client, tournament: int, loser: int) -> Match:
+    res = supabase.table('match').select('*').eq('tournament', tournament).eq('loser', loser).execute()
+    if not res.data:
+        return None
+    if len(res.data) > 1:
+        raise Exception(f'multiple elimination matches {res.data}')
+    return Match(**res.data[0])
 
 
 def set_match(supabase: Client, match: Match):
@@ -65,16 +70,13 @@ def set_match(supabase: Client, match: Match):
         print(f'warning: match id was wrong {match.id} {match_id}, fixing...')
         match.id = match_id
     body = match.model_dump(mode='json', exclude_none=True)
-    print(body)
+    print(f'set match {body}')
     res = supabase.table('match').upsert(body).execute()
-    print(f'set match result {res}')
     return res
 
 
 def get_moves(supabase: Client, match_id: str) -> list[Move]:
     res = supabase.table('move').select('*').eq('match', match_id).execute()
-    print(f'get_moves: {match_id}')
-    print(res)
     if not res.data:
         return []
     return [Move(**d) for d in res.data]
@@ -87,7 +89,6 @@ def set_move(supabase: Client, move: Move):
         move.id = move_id
 
     body = move.model_dump(mode='json')
-    print(body)
+    print(f'set move {body}')
     res = supabase.table('move').insert(body).execute()
-    print(f'set move result {res}')
     return res

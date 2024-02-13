@@ -7,7 +7,8 @@ import datetime
 from supabase import Client
 
 from .models import Tournament, Match, Move, Gesture, MatchState, MatchStatus, Result, TournamentState
-from .storage import get_current_tournament, get_matches_count, get_match, get_moves, set_match, set_move
+from .storage import get_current_tournament, get_matches_count, get_match, get_moves, set_match, set_move, \
+    get_match_loser
 
 # constants
 ROUND_START = 18000  # midnight EST
@@ -286,14 +287,11 @@ def submit_move(supabase: Client, now: int, match: str, fid: int, turn: int, ges
 
 
 def get_match_user_eliminated(supabase: Client, tournament: int, fid: int) -> Match:
-    # TODO
     # convenience just to show user elimination details
-    pass
-
-
-def get_match_winner(supabase: Client, tournament: int, round_: int, slot: int) -> int:
-    # TODO
-    pass
+    m = get_match_loser(supabase, tournament, fid)
+    if m is None:
+        raise Exception(f'no elimination match found for {tournament} {fid}')
+    return m
 
 
 def get_winner(supabase: Client, tournament: int) -> int:
