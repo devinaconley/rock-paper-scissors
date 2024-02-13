@@ -24,6 +24,7 @@ from .render import render_home, render_match
 
 app = Flask(__name__)
 
+# TODO error handling
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
@@ -112,10 +113,6 @@ def match():
         ), 200
 
     # else user needs to play (NEW, OPPONENT_PLAYED, DRAW)
-
-    user = get_user(msg.untrustedData.fid)
-    print(user)
-
     return render_template(
         'frame.html',
         title='match info',

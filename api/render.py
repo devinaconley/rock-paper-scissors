@@ -97,6 +97,10 @@ def render_match(
 
 
 def get_pfp(url: str) -> np.ndarray:
+    if 'imgur' in url:
+        url = url.replace('.jpg', 'b.jpg')
+    elif 'ipfs.decentralized-content' in url:
+        url = f'https://res.cloudinary.com/merkle-manufactory/image/fetch/c_fill,f_png,w_168/{url}'
     res = requests.get(url, stream=True).raw
     im = np.asarray(bytearray(res.read()), dtype='uint8')
     im = cv2.imdecode(im, cv2.IMREAD_COLOR)
