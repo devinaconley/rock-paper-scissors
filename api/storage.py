@@ -56,6 +56,9 @@ def get_match(supabase: Client, tournament: int, round_: int, slot: int) -> Matc
     return Match(**res.data[0])
 
 
+# TODO get_matches ?
+
+
 def set_match(supabase: Client, match: Match):
     match_id = f'{match.tournament}_{match.round}_{match.slot}'
     if match.id != match_id:

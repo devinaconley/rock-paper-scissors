@@ -102,6 +102,7 @@ def get_match_slot(
         round_: int,
         slot: int
 ) -> Match:
+    # TODO speed up
     # get match if exists
     print(f'get match slot {round_} {slot}')
     m = get_match(supabase, tournament, round_, slot)

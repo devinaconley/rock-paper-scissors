@@ -31,6 +31,9 @@ def home():
     s = get_supabase()
     t = get_current_tournament(s)
 
+    now = time.time()
+    hour = now - now % 3600
+
     return render_template(
         'frame.html',
         title='farcaster rock paper scissors',
@@ -87,22 +90,23 @@ def match():
     if ((state.status == MatchStatus.USER_0_PLAYED and msg.untrustedData.fid == m.user0)
             or (state.status == MatchStatus.USER_1_PLAYED and msg.untrustedData.fid == m.user1)):
         print('you played a move waiting on opponent')
-        # TODO waiting
         return render_template(
             'frame.html',
             title='waiting on opponent',
-            image='https://img.freepik.com/free-photo/hourglass-with-sand-middle-word-sand-it_123827-23414.jpg',
+            image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=m.slot, turn=state.turn,
+                          user=msg.untrustedData.fid, status=state.status.value),
+
             post_url=url_for('home', _external=True),
             button1='\U0001F519'  # back
         ), 200
 
     elif state.status == MatchStatus.SETTLED:
-        # TODO results
         print(f'settled: {state}')
         return render_template(
             'frame.html',
             title='match settled',
-            image='https://img.freepik.com/free-photo/hourglass-with-sand-middle-word-sand-it_123827-23414.jpg',
+            image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=m.slot, turn=state.turn,
+                          user=msg.untrustedData.fid, status=state.status.value),
             post_url=url_for('home', _external=True),
             button1='\U0001F519'  # back
         ), 200
@@ -115,7 +119,8 @@ def match():
     return render_template(
         'frame.html',
         title='match info',
-        image='https://img.freepik.com/premium-photo/versus-screen-fight-backgrounds-competition-3d-rendering_578102-1434.jpg',
+        image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=m.slot, turn=state.turn,
+                      user=msg.untrustedData.fid, status=state.status.value),
         content='rock paper scissors current matchup',
         post_url=url_for('move', _external=True),
         button1='\U0001F5FF',  # rock
@@ -166,10 +171,11 @@ def move():
     return render_template(
         'frame.html',
         title='you played a move!',
-        image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=0, turn=0, user=0, status=0),
+        image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=m.slot, turn=state.turn + 1,
+                      user=action.interactor.fid, status=MatchStatus.NEW.value),
         content='you played a move!',
         post_url=url_for('home', _external=True),
-        button1='back'
+        button1='\U0001F519'  # back
     ), 200
 
 
@@ -198,17 +204,26 @@ def home_image(tournament: int, timestamp: int = None):
     return res
 
 
-@app.route('/render/match/<int:tournament>/<int:round_>}/<int:slot>/<int:turn>/<int:user>/<int:status>/im.png')
+@app.route('/render/match/<int:tournament>/<int:round_>/<int:slot>/<int:turn>/<int:user>/<int:status>/im.png')
 def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, status: int):
     # get match state
     status = MatchStatus(status)
-    u = bool(user)
     s = get_supabase()
-    m = get_match(s, tournament, round_, slot)
+    m = get_match(s, tournament, round_, slot)  # TODO also get state from db
     if m is None:
         raise ValueError(f'invalid match {tournament} {round_} {slot}')
+    if user == m.user0:
+        u = True
+    elif user == m.user1:
+        u = False
+    else:
+        raise ValueError(f'invalid user {m.id} {user}')
+
+    # get user info
+    u0 = get_user(m.user0)
+    u1 = get_user(m.user1)
 
     # render image
-    res = make_response(render_match(m, round_, turn, u, status))
+    res = make_response(render_match(m, u0 if u else u1, u1 if u else u0, round_, turn, status))
     res.headers.set('Content-Type', 'image/png')
     return res

@@ -136,11 +136,36 @@ class ValidatedMessage(BaseModel):
 
 # ---- warpcast ----
 
+class Pfp(BaseModel):
+    url: str
+    verified: bool
+
+
+class WarpBio(BaseModel):
+    text: str
+    mentions: Optional[list[str]] = []
+    channelMentions: Optional[list[str]] = []
+
+
+class WarpLocation(BaseModel):
+    placeId: str
+    description: str
+
+
+class WarpProfile(BaseModel):
+    bio: WarpBio
+    location: WarpLocation
+
+
 class User(BaseModel):
     fid: int
     username: str
     displayName: str
-    # TODO ...
+    pfp: Pfp
+    profile: WarpProfile
+    followerCount: int
+    followingCount: int
+    activeOnFcNetwork: bool
 
 
 # ---- internal ----
