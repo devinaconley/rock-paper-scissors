@@ -159,7 +159,7 @@ class WarpProfile(BaseModel):
 
 class User(BaseModel):
     fid: int
-    username: str
+    username: Optional[str] = None
     displayName: str
     pfp: Optional[Pfp] = None
     profile: WarpProfile

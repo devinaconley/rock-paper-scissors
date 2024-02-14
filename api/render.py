@@ -178,7 +178,7 @@ def render_match(
 
 
 def strip_text(msg: str) -> str:
-    return ''.join(m for m in msg if ord(m) < 128)
+    return ''.join(m for m in msg if ord(m) < 128).strip()
 
 
 def get_pfp(url: str) -> np.ndarray:
