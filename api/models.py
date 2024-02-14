@@ -183,8 +183,8 @@ class MatchState(BaseModel):
     status: MatchStatus
     winner: Optional[int] = None
     loser: Optional[int] = None
-    history0: list[int] = []
-    history1: list[int] = []
+    history0: list[Gesture] = []
+    history1: list[Gesture] = []
 
 
 class TournamentState(BaseModel):

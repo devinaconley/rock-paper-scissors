@@ -230,6 +230,8 @@ def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, s
     m = get_match(s, tournament, round_, slot)
     if m is None:
         raise BadRequest(f'invalid match {tournament} {round_} {slot}')
+    if user == 0:
+        raise BadRequest('invalid user 0')
     if user == m.user0:
         u = True
     elif user == m.user1:
@@ -246,10 +248,10 @@ def match_image(tournament: int, round_: int, slot: int, turn: int, user: int, s
 
     # get user info
     u0 = get_user(m.user0)
-    u1 = get_user(m.user1)
+    u1 = get_user(m.user1) if m.user1 > 0 else None
 
     # render image
-    res = make_response(render_match(m, u0 if u else u1, u1 if u else u0, round_, state.turn, state.status))
+    res = make_response(render_match(m, u0 if u else u1, u1 if u else u0, round_, state))
     res.headers.set('Content-Type', 'image/png')
     return res
 
