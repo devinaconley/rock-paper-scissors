@@ -63,24 +63,33 @@ def render_match(
     im = cv2.putText(im, f'turn {state.turn}', (518, 25), FONT, 0.3, (0, 0, 0))
 
     # player data
-    im = cv2.putText(im, f'{user.displayName:.16s}', (328, 158), FONT, 0.4, (0, 0, 0))
+    name_user = strip_text(f'{user.displayName:.16s}')
+    im = cv2.putText(im, name_user, (328, 158), FONT, 0.4, (0, 0, 0))
     im = cv2.putText(im, f'Fid.{user.fid}', (460, 158), FONT, 0.3, (0, 0, 0))
-    pfp_user = get_pfp(user.pfp.url)
-    x = 100
-    y = 120
-    im[y:y + PFP_SZ, x:x + PFP_SZ] = pfp_user
+    try:
+        pfp_user = get_pfp(user.pfp.url)
+        x = 100
+        y = 120
+        im[y:y + PFP_SZ, x:x + PFP_SZ] = pfp_user
+    except Exception as e:
+        print(f'failed to render user pfp {user.fid} {e}')
 
     # opponent data
     if opponent is None:
+        name_opp = 'BYE'
         im = cv2.putText(im, 'BYE', (45, 25), FONT, 0.4, (0, 0, 0))
         im = cv2.putText(im, 'Fid.0', (175, 25), FONT, 0.3, (0, 0, 0))
     else:
-        im = cv2.putText(im, f'{opponent.displayName:.16s}', (45, 25), FONT, 0.4, (0, 0, 0))
+        name_opp = strip_text(f'{opponent.displayName:.16s}')
+        im = cv2.putText(im, name_opp, (45, 25), FONT, 0.4, (0, 0, 0))
         im = cv2.putText(im, f'Fid.{opponent.fid}', (175, 25), FONT, 0.3, (0, 0, 0))
-        pfp_opp = get_pfp(opponent.pfp.url)
-        x = 360
-        y = 20
-        im[y:y + PFP_SZ, x:x + PFP_SZ] = pfp_opp
+        try:
+            pfp_opp = get_pfp(opponent.pfp.url)
+            x = 360
+            y = 20
+            im[y:y + PFP_SZ, x:x + PFP_SZ] = pfp_opp
+        except Exception as e:
+            print(f'failed to render opponent pfp {user.fid} {e}')
 
     # TODO bonus features: health bar, loser drop, gif, emoji render
 
@@ -100,7 +109,7 @@ def render_match(
 
         im = write_message(
             im,
-            line0=f'Round {round_} matchup, {user.displayName:.16s} vs. {opponent.displayName:.16s}.',
+            line0=f'Round {round_} matchup, {name_user} vs. {name_opp}.',
             line1=msg
         )
 
@@ -112,9 +121,9 @@ def render_match(
             g_user, g_opp = g_opp, g_user
         # winning vs losing text
         if match.winner == user.fid:
-            msg = f'You have defeated {opponent.displayName:.16s} in round {round_}!'
+            msg = f'You have defeated {name_opp} in round {round_}!'
         else:
-            msg = f'You were knocked out by {opponent.displayName:.16s} in round {round_}!'
+            msg = f'You were knocked out by {name_opp} in round {round_}!'
         im = write_message(im, line0=f'Opponent played {g_opp.name} against your {g_user.name}.', line1=msg)
 
     elif match.result == Result.FORFEIT:
@@ -122,13 +131,13 @@ def render_match(
             im = write_message(
                 im,
                 line0=f'Opponent did not play a move for turn {state.turn}.',
-                line1=f'You have defeated {opponent.displayName:.16s} in round {round_} by forfeit.'
+                line1=f'You have defeated {name_opp} in round {round_} by forfeit.'
             )
         else:
             im = write_message(
                 im,
                 line0=f'You did not play a move for turn {state.turn}.',
-                line1=f'You lost to {opponent.displayName:.16s} in round {round_} by forfeit.'
+                line1=f'You lost to {name_opp} in round {round_} by forfeit.'
             )
 
     elif match.result == Result.DRAW:
@@ -136,20 +145,20 @@ def render_match(
             im = write_message(
                 im,
                 line0=f'Match was a draw after {state.turn} turns!',
-                line1=f'You have defeated {opponent.displayName:.16s} in round {round_} by seniority.'
+                line1=f'You have defeated {name_opp} in round {round_} by seniority.'
             )
         else:
             im = write_message(
                 im,
                 line0=f'Match was a draw after {state.turn} turns!',
-                line1=f'You lost to {opponent.displayName:.16s} in round {round_} by seniority.'
+                line1=f'You lost to {name_opp} in round {round_} by seniority.'
             )
 
     elif match.result == Result.PASS:
         if match.winner == user.fid:
-            msg = f'You have defeated {opponent.displayName:.16s} in round {round_} by seniority.'
+            msg = f'You have defeated {name_opp} in round {round_} by seniority.'
         else:
-            msg = f'You lost to {opponent.displayName:.16s} in round {round_} by seniority.'
+            msg = f'You lost to {name_opp} in round {round_} by seniority.'
         im = write_message(im, line0=f'No contest.', line1=msg)
 
     elif match.result == Result.BYE:
@@ -166,6 +175,10 @@ def render_match(
     # encode
     _, b = cv2.imencode('.png', im)
     return b.tobytes()
+
+
+def strip_text(msg: str) -> str:
+    return ''.join(m for m in msg if ord(m) < 128)
 
 
 def get_pfp(url: str) -> np.ndarray:

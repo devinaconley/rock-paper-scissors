@@ -44,7 +44,8 @@ def round_size(total: int, round_: int) -> int:
 
 
 def remaining_users(total: int, round_: int, settled: int) -> int:
-    return round_size(total, round_) - settled
+    round_remaining = round_size(total, round_) - settled
+    return min(round_remaining, total)
 
 
 def match_slot(total: int, round_: int, fid: int) -> int:

@@ -10,7 +10,7 @@ from flask import Flask, render_template, url_for, request, make_response, jsoni
 from .warpcast import get_user
 from .neynar import validate_message_or_mock
 from .storage import get_supabase, get_current_tournament, get_tournament, get_match
-from .models import FrameMessage, Gesture, MatchState, MatchStatus, MessageCode
+from .models import FrameMessage, Gesture, MatchState, MatchStatus, MessageCode, Result
 from .rps import (
     get_round_settled,
     current_round,
@@ -101,6 +101,7 @@ def match():
 
     m, state = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
     print(m)
+    print(state)
     if m is None:
         m = get_match_user_eliminated(s, t.id, msg.untrustedData.fid)
         print(f'eliminated {m}')
@@ -125,7 +126,7 @@ def match():
             button1='\U0001F519'  # back
         ), 200
 
-    elif state.status == MatchStatus.SETTLED:
+    elif m.result in {Result.BYE, Result.PLAYED} or state.status == MatchStatus.SETTLED:
         print(f'settled: {state}')
         return render_template(
             'frame.html',
@@ -211,8 +212,13 @@ def home_image(tournament: int, timestamp: int = None):
     # get tournament state
     now = time.time()
     r = current_round(int(t.start.timestamp()), int(now))
-    r_settled = get_round_settled(s, t.id, r)
-    remaining = remaining_users(t.size, r, r_settled)
+    if r < 0:
+        # not started yet
+        r_settled = 0
+        remaining = t.size
+    else:
+        r_settled = get_round_settled(s, t.id, r)
+        remaining = remaining_users(t.size, r, r_settled)
     prize = '500k $DEGEN'  # TODO get bounty live
     print(f'tournament {tournament}, size {t.size}, round {r}, settled {r_settled}, remaining {remaining}')
 

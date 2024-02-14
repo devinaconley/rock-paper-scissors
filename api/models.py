@@ -161,7 +161,7 @@ class User(BaseModel):
     fid: int
     username: str
     displayName: str
-    pfp: Pfp
+    pfp: Optional[Pfp] = None
     profile: WarpProfile
     followerCount: int
     followingCount: int
