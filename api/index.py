@@ -211,15 +211,13 @@ def home_image(tournament: int, timestamp: int = None):
     # get tournament state
     now = time.time()
     r = current_round(int(t.start.timestamp()), int(now))
-    print(f'round {r}')
     r_settled = get_round_settled(s, t.id, r)
     remaining = remaining_users(t.size, r, r_settled)
-    print(f'settled {r_settled}')
-    print(f'remaining {remaining}')
-    # TODO get bounty?
+    prize = '500k $DEGEN'  # TODO get bounty live
+    print(f'tournament {tournament}, size {t.size}, round {r}, settled {r_settled}, remaining {remaining}')
 
     # render image
-    res = make_response(render_home(t.id, t.size, r, 'TBD', remaining))
+    res = make_response(render_home(t.id, t.size, r, prize, remaining))
     res.headers.set('Content-Type', 'image/png')
     return res
 

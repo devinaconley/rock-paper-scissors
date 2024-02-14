@@ -224,6 +224,11 @@ def resolve_match(round_: int, match: Match, state: MatchState) -> Match:
             match.result = Result.FORFEIT
 
     elif state.status == MatchStatus.SETTLED:
+        users = {match.user0, match.user1} # sanity
+        if state.winner not in users:
+            raise Exception(f'invalid winner {state.winner} for match {match.id}')
+        if state.loser not in users:
+            raise Exception(f'invalid loser {state.loser} for match {match.id}')
         match.winner = state.winner
         match.loser = state.loser
         match.result = Result.PLAYED
