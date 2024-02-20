@@ -6,7 +6,7 @@ test cases for tournament logic utilities
 import pytest
 
 # src
-from api.rps import current_round, round_size, match_slot, parent_slots
+from api.rps import current_round, round_size, match_slot, parent_slots, current_round_end
 
 
 class TestCurrentRound(object):
@@ -58,6 +58,40 @@ class TestCurrentRound(object):
 
         assert start < curr  # note curr is technically after start, but we round to the increment
         assert r == -1
+
+
+class TestCurrentRoundEnd(object):
+    def test_first(self):
+        start = 1707541200  # 2024/02/10 00:00 eastern
+        # 630a, round 0
+
+        end = current_round_end(start, 0)
+
+        assert end == start + 86400
+
+    def test_many(self):
+        start = 1707541200  # 2024/02/10 00:00 eastern
+        # 2023/02/21 noon, round 11
+
+        end = current_round_end(start, 11)
+
+        assert end == start + 12 * 86400
+
+    def test_before(self):
+        start = 1707541200  # 2024/02/10 00:00 eastern
+        # 1130p night before
+
+        r = current_round_end(start, -1)
+
+        assert r == start
+
+    def test_offset_first(self):
+        start = 1707519600  # 2024/02/09 18:00 eastern
+        # 630a, round 0
+
+        end = current_round_end(start, 0)
+
+        assert end == 1707541200 + 86400
 
 
 class TestRoundSize(object):

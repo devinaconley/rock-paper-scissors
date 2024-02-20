@@ -3,11 +3,13 @@ dynamic image rendering for frames
 """
 
 import os
+import datetime
 import requests
 import numpy as np
 import cv2
 
 from .models import Tournament, Match, MatchState, MatchStatus, User, Result
+from .rps import ROUND_BUFFER
 
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 PFP_SZ = 96
@@ -53,7 +55,8 @@ def render_match(
         user: User,
         opponent: User,
         round_: int,
-        state: MatchState
+        state: MatchState,
+        remaining: int
 ) -> bytes:
     # setup background
     im = cv2.imread('api/static/match.png')
@@ -61,6 +64,7 @@ def render_match(
     # match data
     im = cv2.putText(im, f'round {round_}', (510, 15), FONT, 0.3, (0, 0, 0))
     im = cv2.putText(im, f'turn {state.turn}', (518, 25), FONT, 0.3, (0, 0, 0))
+    im = cv2.putText(im, f'{datetime.timedelta(seconds=remaining)}', (510, 35), FONT, 0.3, (0, 0, 0))
 
     # player data
     name_user = strip_text(f'{user.displayName:.16s}')
@@ -96,7 +100,9 @@ def render_match(
     # message
     if match.result == Result.PENDING:
         if state.status == MatchStatus.DRAW:
-            msg = f'Draw! You both played {state.history0[-1].name}. Make your next move.'
+            msg = f'Draw! You both played {state.history0[-1].name}.'
+            if remaining > ROUND_BUFFER:
+                msg += ' Make your next move.'
         elif (user.fid == match.user0 and state.status == MatchStatus.USER_0_PLAYED) or (
                 user.fid == match.user1 and state.status == MatchStatus.USER_1_PLAYED):
             msg = 'Waiting on your opponent.'

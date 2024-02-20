@@ -7,23 +7,30 @@ import datetime
 from supabase import Client
 
 from .models import Tournament, Match, Move, Gesture, MatchState, MatchStatus, Result, TournamentState
-from .storage import get_current_tournament, get_matches_count, get_match, get_moves, set_match, set_move, \
-    get_match_loser
+from .storage import get_matches_count, get_match, get_moves, set_match, set_move, get_match_loser
 
 # constants
 ROUND_START = 18000  # midnight EST
 ROUND_DURATION = 86400
+ROUND_BUFFER = 3600
+
+
+def tournament_start(start: int) -> int:
+    # get next increment for actual tournament start time
+    days = math.ceil((start - ROUND_START) / ROUND_DURATION)
+    return ROUND_DURATION * days + ROUND_START
 
 
 def current_round(start: int, current: int) -> int:
-    # get next increment for actual tournament start time
-    days = math.ceil((start - ROUND_START) / ROUND_DURATION)
-    t0 = ROUND_DURATION * days + ROUND_START
-
+    t0 = tournament_start(start)
     if current < t0:
         return -1  # not started
-
     return (current - t0) // ROUND_DURATION  # first round = 0
+
+
+def current_round_end(start: int, round_: int) -> int:
+    t0 = tournament_start(start)
+    return t0 + max(0, round_ + 1) * ROUND_DURATION
 
 
 def round_size(total: int, round_: int) -> int:
@@ -225,7 +232,7 @@ def resolve_match(round_: int, match: Match, state: MatchState) -> Match:
             match.result = Result.FORFEIT
 
     elif state.status == MatchStatus.SETTLED:
-        users = {match.user0, match.user1} # sanity
+        users = {match.user0, match.user1}  # sanity
         if state.winner not in users:
             raise Exception(f'invalid winner {state.winner} for match {match.id}')
         if state.loser not in users:

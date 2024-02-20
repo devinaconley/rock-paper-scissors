@@ -3,7 +3,7 @@ global game of rock paper scissors on farcaster
 
 the backend is written in flask and deployed on vercel, the frontend is rendered via farcaster frames
 
-## development
+## setup
 
 setup a conda (or other virtual) environment
 ```
@@ -16,7 +16,22 @@ setup vercel
 npm install vercel
 ```
 
+
+## development
+
+run unit tests
+```
+pytest -v -s
+```
+
 run local app
 ```
 npx vercel dev
 ```
+
+you can run the frame debugger provided by [frames.js](https://github.com/framesjs/frames.js) to test locally
+
+
+## deployment
+
+_TODO_
