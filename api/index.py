@@ -10,14 +10,16 @@ from flask import Flask, render_template, url_for, request, make_response, jsoni
 from .warpcast import get_user
 from .neynar import validate_message_or_mock
 from .storage import get_supabase, get_current_tournament, get_tournament, get_match
-from .models import FrameMessage, Gesture, MatchState, MatchStatus, MessageCode, Result
+from .models import FrameMessage, Gesture, MatchState, MatchStatus, MessageCode, Result, Tournament
 from .rps import (
     get_round_settled,
     current_round,
     current_round_end,
+    round_size,
     get_match_user,
     get_match_user_eliminated,
     get_match_state,
+    get_match_slot,
     submit_move,
     remaining_users,
     update_match_result,
@@ -38,6 +40,8 @@ def handle_invalid_usage(e):
     response.status_code = 403
     return response
 
+
+# ---- core frame views ----
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
@@ -167,32 +171,6 @@ def match():
     ), 200
 
 
-@app.route('/match/<int:fid>', methods=['GET'])
-def match_get_fid(fid: int):
-    # tournament state
-    now = time.time()
-    s = get_supabase()
-    t = get_current_tournament(s)
-    r = current_round(int(t.start.timestamp()), int(now))
-
-    if r < 0:
-        return jsonify({'msg': 'tournament not started'})
-
-    if fid > t.size:
-        return jsonify({'msg': f'fid {fid} not competing'})
-
-    m, state = get_match_user(s, int(now), t.id, t.size, r, fid)
-    if m is None:
-        m = get_match_user_eliminated(s, t.id, fid)
-        return jsonify({'msg': f'eliminated {m.id}', 'match': m.model_dump(mode='json')})
-
-    return jsonify({
-        'msg': f'current match {fid} {m.id}',
-        'match': m.model_dump(mode='json'),
-        'state': state.model_dump(mode='json')
-    })
-
-
 @app.route('/move', methods=['POST'])
 def move():
     msg = FrameMessage(**json.loads(request.data))
@@ -245,6 +223,100 @@ def move():
         button1='\U0001F519'  # back
     ), 200
 
+
+# ---- auxiliary frame views ----
+
+def _validate_slot(now: int, tournament: Tournament, round_: int, slot: int):
+    r = current_round(int(tournament.start.timestamp()), now)
+    if round_ < 0:
+        raise BadRequest(f'invalid round {round_}')
+    if r > round_:
+        raise BadRequest(f'future round {round_}')
+
+    sz = round_size(tournament.size, round_)
+    if slot >= sz / 2:
+        raise BadRequest(f'invalid slot {slot} for tournament {tournament} round {round_}')
+
+
+@app.route('/spectate/<int:tournament>/<int:round_>/<int:slot>', methods=['GET', 'POST'])
+def spectate(tournament: int, round_: int, slot: int):
+    # validate match slot
+    now = time.time()
+    s = get_supabase()
+    t = get_tournament(s, tournament)
+    if t is None:
+        raise BadRequest(f'invalid tournament {tournament}')
+
+    _validate_slot(int(now), t, round_, slot)
+
+    # get match and state
+    m, state = get_match_slot(s, int(now), t.id, t.size, round_, round_, slot)
+    if state is None:
+        state = get_match_state(s, m)
+
+    return render_template(
+        'frame.html',
+        title='spectating',
+        image=url_for('match_image', _external=True, tournament=t.id, round_=round_, slot=m.slot, turn=state.turn,
+                      user=min(m.user0, m.user1), status=state.status.value),
+        content=f'spectating {m.id}',
+        post_url=url_for('spectate', _external=True, tournament=t.id, round_=round_, slot=slot),
+        button1='\U0001F504'  # refresh
+    ), 200
+
+
+# ---- json info endpoints ----
+@app.route('/match/<int:fid>', methods=['GET'])
+def info_get_match_fid(fid: int):
+    # tournament state
+    now = time.time()
+    s = get_supabase()
+    t = get_current_tournament(s)
+    r = current_round(int(t.start.timestamp()), int(now))
+
+    if r < 0:
+        return jsonify({'msg': 'tournament not started'})
+
+    if fid > t.size:
+        return jsonify({'msg': f'fid {fid} not competing'})
+
+    # get current or latest match
+    m, state = get_match_user(s, int(now), t.id, t.size, r, fid)
+    if m is None:
+        m = get_match_user_eliminated(s, t.id, fid)
+        return jsonify({'msg': f'eliminated {m.id}', 'match': m.model_dump(mode='json')})
+
+    return jsonify({
+        'msg': f'current match {fid} {m.id}',
+        'match': m.model_dump(mode='json'),
+        'state': state.model_dump(mode='json')
+    })
+
+
+@app.route('/match/<int:tournament>/<int:round_>/<int:slot>', methods=['GET'])
+def info_get_match_slot(tournament: int, round_: int, slot: int):
+    # validate match slot
+    now = time.time()
+    s = get_supabase()
+    t = get_tournament(s, tournament)
+    if t is None:
+        raise BadRequest(f'invalid tournament {tournament}')
+
+    _validate_slot(int(now), t, round_, slot)
+
+    # get match and state
+    m, state = get_match_slot(s, int(now), t.id, t.size, round_, round_, slot)
+    if state is None:
+        state = get_match_state(s, m)
+
+    return jsonify({
+        'msg': f'match slot {tournament} {round_} {slot}',
+        'match': m.model_dump(mode='json'),
+        'state': state.model_dump(mode='json')
+    })
+
+
+# ---- image rendering endpoints ----
 
 @app.route('/render/tournament/<int:tournament>/im.png')
 @app.route('/render/tournament/<int:tournament>/<int:timestamp>/im.png')

@@ -64,7 +64,7 @@ def render_match(
     # match data
     im = cv2.putText(im, f'round {round_}', (510, 15), FONT, 0.3, (0, 0, 0))
     im = cv2.putText(im, f'turn {state.turn}', (518, 25), FONT, 0.3, (0, 0, 0))
-    im = cv2.putText(im, f'{datetime.timedelta(seconds=remaining)}', (510, 35), FONT, 0.3, (0, 0, 0))
+    im = cv2.putText(im, f'{datetime.timedelta(seconds=max(0, remaining))}', (510, 35), FONT, 0.3, (0, 0, 0))
 
     # player data
     name_user = strip_text(f'{user.displayName:.16s}')

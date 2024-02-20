@@ -60,6 +60,8 @@ def match_slot(total: int, round_: int, fid: int) -> int:
     # need to match 1 vs N, 2 vs N-1, etc...
     if fid > total:
         raise ValueError(f'user too high: {fid}, total: {total}')
+    if fid < 1:
+        raise ValueError(f'fid too low: {fid}')
     if round_ < 0:
         raise ValueError(f'invalid round: {round_}')
 

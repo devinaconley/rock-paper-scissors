@@ -24,14 +24,14 @@ def get_supabase() -> Client:
 
 def get_current_tournament(supabase: Client) -> Tournament:
     res = supabase.table('tournament').select('*').order('id', desc=True).limit(1).execute()
-    if res.count == 0:
+    if not res.data:
         raise Exception('could not get current tournament')
     return Tournament(**res.data[0])
 
 
 def get_tournament(supabase: Client, tournament: int) -> Tournament:
     res = supabase.table('tournament').select('*').eq('id', tournament).execute()
-    if res.count == 0:
+    if not res.data:
         raise Exception('could not get current tournament')
     return Tournament(**res.data[0])
 
