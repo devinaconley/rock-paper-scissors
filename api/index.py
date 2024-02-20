@@ -109,7 +109,7 @@ def match():
     print(state)
     if m is None:
         m = get_match_user_eliminated(s, t.id, msg.untrustedData.fid)
-        print(f'eliminated {m}')
+        print(f'eliminated {m.id}')
         return render_template(
             'frame.html',
             title='you were eliminated',
@@ -132,7 +132,7 @@ def match():
         ), 200
 
     elif m.result in {Result.BYE, Result.PLAYED} or state.status == MatchStatus.SETTLED:
-        print(f'settled: {state}')
+        print(f'settled: {m.result}')
         return render_template(
             'frame.html',
             title='match settled',
@@ -146,7 +146,7 @@ def match():
         print(f'draw in buffer window: {state}')
         return render_template(
             'frame.html',
-            title='match settled',
+            title='match draw',
             image=url_for('match_image', _external=True, tournament=t.id, round_=r, slot=m.slot, turn=state.turn,
                           user=msg.untrustedData.fid, status=state.status.value),
             post_url=url_for('home', _external=True),
@@ -165,6 +165,32 @@ def match():
         button2='\U0001f4c3',  # paper
         button3='\U00002702\U0000fe0f',  # scissors
     ), 200
+
+
+@app.route('/match/<int:fid>', methods=['GET'])
+def match_get_fid(fid: int):
+    # tournament state
+    now = time.time()
+    s = get_supabase()
+    t = get_current_tournament(s)
+    r = current_round(int(t.start.timestamp()), int(now))
+
+    if r < 0:
+        return jsonify({'msg': 'tournament not started'})
+
+    if fid > t.size:
+        return jsonify({'msg': f'fid {fid} not competing'})
+
+    m, state = get_match_user(s, int(now), t.id, t.size, r, fid)
+    if m is None:
+        m = get_match_user_eliminated(s, t.id, fid)
+        return jsonify({'msg': f'eliminated {m.id}', 'match': m.model_dump(mode='json')})
+
+    return jsonify({
+        'msg': f'current match {fid} {m.id}',
+        'match': m.model_dump(mode='json'),
+        'state': state.model_dump(mode='json')
+    })
 
 
 @app.route('/move', methods=['POST'])
