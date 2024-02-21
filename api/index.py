@@ -230,7 +230,7 @@ def _validate_slot(now: int, tournament: Tournament, round_: int, slot: int):
     r = current_round(int(tournament.start.timestamp()), now)
     if round_ < 0:
         raise BadRequest(f'invalid round {round_}')
-    if r > round_:
+    if round_ > r:
         raise BadRequest(f'future round {round_}')
 
     sz = round_size(tournament.size, round_)
