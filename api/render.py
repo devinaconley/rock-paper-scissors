@@ -2,9 +2,7 @@
 dynamic image rendering for frames
 """
 
-import os
 import datetime
-import math
 import requests
 import numpy as np
 import cv2
@@ -31,8 +29,6 @@ def render_home(tournament: int, total: int, round_: int, prize, remaining: int)
 
     # message
     im = write_message(im, line0='Welcome to Farcaster rock paper scissors. Click below to play.', line1='Good luck!')
-
-    # TODO final bracket board
 
     # encode
     _, b = cv2.imencode('.png', im)
@@ -191,7 +187,7 @@ def render_bracket(bracket: dict, users: dict[int, User], round_: int) -> bytes:
     # draw bracket
     y0 = 20
     msg = None
-    msg_ts = datetime.datetime.fromtimestamp(0)
+    msg_dt = datetime.datetime.fromtimestamp(0)
     for i in range(5):
         x = 20 + i * 100
         dy = 12 * (2 ** i)
@@ -222,20 +218,23 @@ def render_bracket(bracket: dict, users: dict[int, User], round_: int) -> bytes:
                 im = cv2.putText(im, name_user, (x + 102, int(y + 0.5 * dy - 2)), FONT, 0.3, (0, 0, 0))
 
             # get update message
-            if m.round == round_ and (msg is None or m.updated > msg_ts):
+            if m.round == round_ and (msg is None or m.updated > msg_dt):
                 if m.winner is not None:
                     name_winner = strip_text(f'{users[m.winner].displayName:.16s}')
                     name_loser = strip_text(f'{users[m.loser].displayName:.16s}')
                     msg = f'{name_winner} has just defeated {name_loser}.'
                 else:
                     msg = f'playing now! {name_user0} vs. {name_user1}'
-                msg_ts = m.updated
+                msg_dt = m.updated
 
         # offset y
         y0 += int(0.5 * dy)
 
     # write latest update message
-    im = write_message(im, line0=msg)
+    if msg is not None:
+        tz = datetime.timezone(datetime.timedelta(hours=-5))
+        msg = f'[{msg_dt.astimezone(tz):%H:%M}] ' + msg
+        im = write_message(im, line0=msg)
 
     # cv2.imshow('debug', im)
     # cv2.waitKey(0)
