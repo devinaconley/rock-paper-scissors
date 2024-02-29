@@ -49,21 +49,17 @@ def home():
     s = get_supabase()
     t = get_current_tournament(s)
 
-    # include hour in path to skip cached image and serve fresh
-    # TODO: remove this concept once we get official first page cache expiry
-    hour = None
-    if request.method == 'POST':
-        now = time.time()
-        hour = now - now % 3600
-
-    return render_template(
+    response = make_response(render_template(
         'frame.html',
         title='farcaster rock paper scissors',
-        image=url_for('home_image', _external=True, tournament=t.id, timestamp=hour),
+        image=url_for('home_image', _external=True, tournament=t.id),
         content='welcome to rock paper scissors!',
         post_url=url_for('match', _external=True),
         button1='play \U00002694\U0000fe0f'
-    ), 200
+    ))
+    response.cache_control.max_age = 900  # expire cached image after 15 minutes
+    response.status_code = 200
+    return response
 
 
 @app.route('/match', methods=['POST'])
