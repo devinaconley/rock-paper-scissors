@@ -4,6 +4,7 @@ dynamic image rendering for frames
 
 import os
 import datetime
+import math
 import requests
 import numpy as np
 import cv2
@@ -173,6 +174,68 @@ def render_match(
             line0=f'You received a bye for round {round_}.',
             line1=f'Good luck in your next match.'
         )
+
+    # cv2.imshow('debug', im)
+    # cv2.waitKey(0)
+    # return
+
+    # encode
+    _, b = cv2.imencode('.png', im)
+    return b.tobytes()
+
+
+def render_bracket(bracket: dict, users: dict[int, User], round_: int) -> bytes:
+    # setup background
+    im = cv2.imread('api/static/tournament.png')
+
+    # draw bracket
+    y0 = 20
+    msg = None
+    msg_ts = datetime.datetime.fromtimestamp(0)
+    for i in range(5):
+        x = 20 + i * 100
+        dy = 12 * (2 ** i)
+        for j in range(int(16 / 2 ** i)):
+            y = y0 + j * dy
+            # draw bracket lines
+            gray = (175, 175, 175)
+            im = cv2.line(im, (x, y), (x + 100, y), gray, 1)
+            if j % 2 or i == 4:
+                continue
+            im = cv2.line(im, (x + 100, y), (x + 100, y + dy), gray, 1)
+
+            # draw matchup names
+            slot = j // 2
+            if i not in bracket:
+                continue
+            if slot not in bracket[i]:
+                continue
+            m: Match = bracket[i][slot]
+            name_user0 = strip_text(f'{users[m.user0].displayName:.16s}')
+            im = cv2.putText(im, name_user0, (x, y - 2), FONT, 0.3, (0, 0, 0))
+            name_user1 = strip_text(f'{users[m.user1].displayName:.16s}')
+            im = cv2.putText(im, name_user1, (x, y + dy - 2), FONT, 0.3, (0, 0, 0))
+
+            # place winners
+            if (m.round == round_ or i == 4) and m.winner is not None:
+                name_user = strip_text(f'{users[m.winner].displayName:.16s}')
+                im = cv2.putText(im, name_user, (x + 100, int(y + 0.5 * dy - 2)), FONT, 0.3, (0, 0, 0))
+
+            # get update message
+            if m.round == round_ and (msg is None or m.updated > msg_ts):
+                if m.winner is not None:
+                    name_winner = strip_text(f'{users[m.winner].displayName:.16s}')
+                    name_loser = strip_text(f'{users[m.loser].displayName:.16s}')
+                    msg = f'{name_winner} has just defeated {name_loser}.'
+                else:
+                    msg = f'playing now! {name_user0} vs. {name_user1}'
+                msg_ts = m.updated
+
+        # offset y
+        y0 += int(0.5 * dy)
+
+    # write latest update message
+    im = write_message(im, line0=msg)
 
     # cv2.imshow('debug', im)
     # cv2.waitKey(0)

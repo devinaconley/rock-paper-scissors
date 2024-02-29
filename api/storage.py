@@ -45,6 +45,14 @@ def get_matches_count(supabase: Client, tournament: int, round_: int, result: Re
     return res.count
 
 
+def get_matches_after(supabase: Client, tournament: int, round_: int) -> list[Match]:
+    q = supabase.table('match').select('*').eq('tournament', tournament).gte('round', round_)
+    res = q.execute()
+    if not res.data:
+        return []
+    return [Match(**d) for d in res.data]
+
+
 def get_match(supabase: Client, tournament: int, round_: int, slot: int) -> Match:
     match_id = f'{tournament}_{round_}_{slot}'
     res = supabase.table('match').select('*').eq('id', match_id).execute()

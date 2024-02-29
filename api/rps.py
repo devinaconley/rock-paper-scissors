@@ -7,7 +7,7 @@ import datetime
 from supabase import Client
 
 from .models import Tournament, Match, Move, Gesture, MatchState, MatchStatus, Result, TournamentState
-from .storage import get_matches_count, get_match, get_moves, set_match, set_move, get_match_loser
+from .storage import get_matches_count, get_match, get_moves, set_match, set_move, get_match_loser, get_matches_after
 
 # constants
 ROUND_START = 18000  # midnight EST
@@ -338,10 +338,23 @@ def get_winner(supabase: Client, tournament: int) -> int:
     pass
 
 
-def get_final_bracket(supabase: Client, tournament: int):
-    # TODO
-    # can probably implement later, won't be usable until the end
-    pass
+def get_final_bracket(supabase: Client, tournament: int, total: int):
+    # start bracket with round of 16
+    total_rounds = math.ceil(math.log2(total))
+    if total_rounds < 4:
+        raise ValueError('not enough competitors for a round of 16')
+    round_16 = total_rounds - 4
+
+    # get all matches in last 4 rounds
+    matches = get_matches_after(supabase, tournament, round_16)
+    bracket = {}
+    for m in matches:
+        r = m.round - round_16
+        if r not in bracket:
+            bracket[r] = {}
+        bracket[r][m.slot] = m
+
+    return bracket
 
 
 def get_tournament_state(supabase: Client, tournament: int, round_: int) -> TournamentState:
