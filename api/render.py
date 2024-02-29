@@ -212,14 +212,14 @@ def render_bracket(bracket: dict, users: dict[int, User], round_: int) -> bytes:
                 continue
             m: Match = bracket[i][slot]
             name_user0 = strip_text(f'{users[m.user0].displayName:.16s}')
-            im = cv2.putText(im, name_user0, (x, y - 2), FONT, 0.3, (0, 0, 0))
+            im = cv2.putText(im, name_user0, (x + 2, y - 2), FONT, 0.3, (0, 0, 0))
             name_user1 = strip_text(f'{users[m.user1].displayName:.16s}')
-            im = cv2.putText(im, name_user1, (x, y + dy - 2), FONT, 0.3, (0, 0, 0))
+            im = cv2.putText(im, name_user1, (x + 2, y + dy - 2), FONT, 0.3, (0, 0, 0))
 
             # place winners
             if (m.round == round_ or i == 4) and m.winner is not None:
                 name_user = strip_text(f'{users[m.winner].displayName:.16s}')
-                im = cv2.putText(im, name_user, (x + 100, int(y + 0.5 * dy - 2)), FONT, 0.3, (0, 0, 0))
+                im = cv2.putText(im, name_user, (x + 102, int(y + 0.5 * dy - 2)), FONT, 0.3, (0, 0, 0))
 
             # get update message
             if m.round == round_ and (msg is None or m.updated > msg_ts):

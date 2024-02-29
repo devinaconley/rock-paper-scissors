@@ -23,9 +23,10 @@ from .rps import (
     submit_move,
     remaining_users,
     update_match_result,
-    ROUND_BUFFER
+    ROUND_BUFFER,
+    get_final_bracket
 )
-from .render import render_home, render_match, render_message
+from .render import render_home, render_match, render_message, render_bracket
 
 app = Flask(__name__)
 
@@ -55,7 +56,9 @@ def home():
         image=url_for('home_image', _external=True, tournament=t.id),
         content='welcome to rock paper scissors!',
         post_url=url_for('match', _external=True),
-        button1='play \U00002694\U0000fe0f'
+        button1='play \U00002694\U0000fe0f',
+        button2='bracket \U0001F3C6',
+        button2_target=url_for('bracket', _external=True)
     ))
     response.cache_control.max_age = 900  # expire cached image after 15 minutes
     response.status_code = 200
@@ -261,6 +264,25 @@ def spectate(tournament: int, round_: int, slot: int):
     ), 200
 
 
+@app.route('/bracket', methods=['GET', 'POST'])
+def bracket():
+    s = get_supabase()
+    t = get_current_tournament(s)
+
+    response = make_response(render_template(
+        'frame.html',
+        title='bracket',
+        image=url_for('bracket_image', _external=True, tournament=t.id),
+        content=f'bracket {t.id}',
+        post_url=url_for('home', _external=True),
+        button1='\U0001F519'  # back
+    ))
+
+    response.cache_control.max_age = 300
+    response.status_code = 200
+    return response
+
+
 # ---- json info endpoints ----
 @app.route('/match/<int:fid>', methods=['GET'])
 def info_get_match_fid(fid: int):
@@ -339,6 +361,7 @@ def home_image(tournament: int, timestamp: int = None):
     # render image
     res = make_response(render_home(t.id, t.size, r, prize, remaining))
     res.headers.set('Content-Type', 'image/png')
+    res.cache_control.max_age = 900
     return res
 
 
@@ -393,4 +416,34 @@ def message_image(code: int):
     # response
     res = make_response(b)
     res.headers.set('Content-Type', 'image/png')
+    return res
+
+
+@app.route('/render/bracket/<int:tournament>/im.png')
+def bracket_image(tournament: int):
+    # get tournament
+    s = get_supabase()
+    t = get_tournament(s, tournament)
+    if t is None:
+        raise BadRequest(f'invalid tournament {tournament}')
+    now = time.time()
+    r = current_round(int(t.start.timestamp()), int(now))
+
+    # get bracket
+    bracket_matches = get_final_bracket(s, t.id, t.size)
+
+    # get user profiles
+    users = {}
+    for _, bracket_round in bracket_matches.items():
+        for _, m in bracket_round.items():
+            if m.user0 not in users:
+                users[m.user0] = get_user(m.user0)
+            if m.user1 not in users:
+                users[m.user1] = get_user(m.user1)
+
+    # render image
+    res = make_response(render_bracket(bracket_matches, users, r))
+    res.headers.set('Content-Type', 'image/png')
+    res.cache_control.max_age = 300
+
     return res
