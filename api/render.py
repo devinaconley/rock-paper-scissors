@@ -250,10 +250,15 @@ def strip_text(msg: str) -> str:
 
 
 def get_pfp(url: str) -> np.ndarray:
-    if 'imgur' in url:
-        url = url.replace('.jpg', 'b.jpg')
-    elif 'ipfs.decentralized-content' in url:
-        url = f'https://res.cloudinary.com/merkle-manufactory/image/fetch/c_fill,f_png,w_168/{url}'
+    # if 'imgur' in url:
+    #     if 'jpg' in 'url':
+    #         url = url.replace('.jpg', 'b.jpg')
+    #     elif 'png' in 'url':
+    #         url = url.replace('.png', 'b.png')
+    # elif 'ipfs.decentralized-content' in url:
+    #     url = f'https://res.cloudinary.com/merkle-manufactory/image/fetch/c_fill,f_png,w_168/{url}'
+    url = f'https://res.cloudinary.com/merkle-manufactory/image/fetch/c_fill,f_jpg,h_{PFP_SZ},w_{PFP_SZ}/{url}'
+
     res = requests.get(url, stream=True).raw
     im = np.asarray(bytearray(res.read()), dtype='uint8')
     im = cv2.imdecode(im, cv2.IMREAD_COLOR)
