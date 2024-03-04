@@ -7,7 +7,7 @@ import datetime
 from supabase import Client
 
 from .models import Tournament, Match, Move, Gesture, MatchState, MatchStatus, Result, TournamentState
-from .storage import get_matches_count, get_match, get_moves, set_match, set_move, get_match_loser, get_matches_after
+from .storage import get_matches_count, get_match, get_moves, set_match, set_move, get_match_last, get_matches_after
 
 # constants
 ROUND_START = 18000  # midnight EST
@@ -40,14 +40,18 @@ def round_size(total: int, round_: int) -> int:
         raise ValueError(f'invalid round: {round_}')
 
     # find next power of 2
-    total_rounds = math.ceil(math.log2(total))
+    total_rounds_ = total_rounds(total)
 
     # split for each round passed
-    sz = 2 ** (total_rounds - round_)
+    sz = 2 ** (total_rounds_ - round_)
 
     if sz < 1:
         return 1  # tournament over
     return int(sz)
+
+
+def total_rounds(total: int) -> int:
+    return math.ceil(math.log2(total))
 
 
 def remaining_users(total: int, round_: int, settled: int) -> int:
@@ -97,6 +101,11 @@ def get_match_user(
         round_: int,
         fid: int
 ) -> (Match, MatchState):
+    # tournament ongoing
+    sz = round_size(total, round_)
+    if sz < 2:
+        return None, None
+
     # compute match slot and parent slots
     slot = match_slot(total, round_, fid)
 
@@ -325,11 +334,11 @@ def submit_move(supabase: Client, now: int, match: str, fid: int, turn: int, ges
     return set_move(supabase, move)
 
 
-def get_match_user_eliminated(supabase: Client, tournament: int, fid: int) -> Match:
-    # convenience just to show user elimination details
-    m = get_match_loser(supabase, tournament, fid)
+def get_match_user_last(supabase: Client, tournament: int, fid: int) -> Match:
+    # convenience just to show user elimination (or last match) details
+    m = get_match_last(supabase, tournament, fid)
     if m is None:
-        raise Exception(f'no elimination match found for {tournament} {fid}')
+        raise Exception(f'no last match found for {tournament} {fid}')
     return m
 
 
@@ -340,10 +349,10 @@ def get_winner(supabase: Client, tournament: int) -> int:
 
 def get_final_bracket(supabase: Client, tournament: int, total: int):
     # start bracket with round of 16
-    total_rounds = math.ceil(math.log2(total))
-    if total_rounds < 4:
+    total_rounds_ = total_rounds(total)
+    if total_rounds_ < 4:
         raise ValueError('not enough competitors for a round of 16')
-    round_16 = total_rounds - 4
+    round_16 = total_rounds_ - 4
 
     # get all matches in last 4 rounds
     matches = get_matches_after(supabase, tournament, round_16)

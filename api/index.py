@@ -16,8 +16,9 @@ from .rps import (
     current_round,
     current_round_end,
     round_size,
+    total_rounds,
     get_match_user,
-    get_match_user_eliminated,
+    get_match_user_last,
     get_match_state,
     get_match_slot,
     submit_move,
@@ -86,8 +87,6 @@ def match():
     r = current_round(int(t.start.timestamp()), int(now))
     end = current_round_end(int(t.start.timestamp()), r)
 
-    # TODO handle tournament over
-
     if r < 0:
         return render_template(
             'frame.html',
@@ -111,11 +110,11 @@ def match():
     print(m)
     print(state)
     if m is None:
-        m = get_match_user_eliminated(s, t.id, msg.untrustedData.fid)
-        print(f'eliminated {m.id}')
+        m = get_match_user_last(s, t.id, msg.untrustedData.fid)
+        print(f'last match {m.id}')
         return render_template(
             'frame.html',
-            title='you were eliminated',
+            title='your last match',
             image=url_for('match_image', _external=True, tournament=t.id, round_=m.round, slot=m.slot, turn=0,
                           user=msg.untrustedData.fid, status=MatchStatus.SETTLED.value),
             post_url=url_for('home', _external=True),
@@ -185,6 +184,10 @@ def move():
     if msg.untrustedData.fid > t.size:
         raise BadRequest(f'fid {msg.untrustedData.fid} not competing')
 
+    sz = round_size(t.size, r)
+    if sz < 2:
+        raise BadRequest('tournament over')
+
     m, state = get_match_user(s, int(now), t.id, t.size, r, msg.untrustedData.fid)
     if m is None:
         raise BadRequest(f'fid {msg.untrustedData.fid} has been eliminated')
@@ -205,9 +208,8 @@ def move():
     if not val:
         raise BadRequest(f'invalid message! {msg.model_dump_json()}')
 
-    print(f'played: {action.tapped_button.index}')
     g = Gesture(action.tapped_button.index)
-    print(g)
+    print(f'played: {g}')
 
     # submit action
     submit_move(s, int(now), m.id, action.interactor.fid, state.turn, g, msg.trustedData.messageBytes)
@@ -301,8 +303,8 @@ def info_get_match_fid(fid: int):
     # get current or latest match
     m, state = get_match_user(s, int(now), t.id, t.size, r, fid)
     if m is None:
-        m = get_match_user_eliminated(s, t.id, fid)
-        return jsonify({'msg': f'eliminated {m.id}', 'match': m.model_dump(mode='json')})
+        m = get_match_user_last(s, t.id, fid)
+        return jsonify({'msg': f'last {m.id}', 'match': m.model_dump(mode='json')})
 
     return jsonify({
         'msg': f'current match {fid} {m.id}',
@@ -348,10 +350,16 @@ def home_image(tournament: int, timestamp: int = None):
     # get tournament state
     now = time.time()
     r = current_round(int(t.start.timestamp()), int(now))
+    sz = round_size(t.size, r)
     if r < 0:
         # not started yet
         r_settled = 0
         remaining = t.size
+    elif sz < 2:
+        # tournament over
+        r = total_rounds(t.size) - 1
+        r_settled = 0
+        remaining = 1
     else:
         r_settled = get_round_settled(s, t.id, r)
         remaining = remaining_users(t.size, r, r_settled)

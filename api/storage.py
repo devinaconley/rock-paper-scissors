@@ -70,6 +70,14 @@ def get_match_loser(supabase: Client, tournament: int, loser: int) -> Match:
     return Match(**res.data[0])
 
 
+def get_match_last(supabase: Client, tournament: int, fid: int) -> Match:
+    res = supabase.table('match').select('*').eq('tournament', tournament).or_(f'user0.eq.{fid},user1.eq.{fid}').order(
+        'round', desc=True).limit(1).execute()
+    if not res.data:
+        return None
+    return Match(**res.data[0])
+
+
 def set_match(supabase: Client, match: Match):
     match_id = f'{match.tournament}_{match.round}_{match.slot}'
     if match.id != match_id:

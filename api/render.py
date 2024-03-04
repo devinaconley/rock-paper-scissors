@@ -213,7 +213,7 @@ def render_bracket(bracket: dict, users: dict[int, User], round_: int) -> bytes:
             im = cv2.putText(im, name_user1, (x + 2, y + dy - 2), FONT, 0.3, (0, 0, 0))
 
             # place winners
-            if (m.round == round_ or i == 4) and m.winner is not None:
+            if (m.round == round_ or i == 3) and m.winner is not None:
                 name_user = strip_text(f'{users[m.winner].displayName:.16s}')
                 im = cv2.putText(im, name_user, (x + 102, int(y + 0.5 * dy - 2)), FONT, 0.3, (0, 0, 0))
 
